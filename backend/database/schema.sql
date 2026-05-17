@@ -45,16 +45,6 @@ CREATE TABLE IF NOT EXISTS messages (
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON messages (conversation_id, created_at DESC);
 
--- Documents (PDFs, RAG sources)
-CREATE TABLE IF NOT EXISTS documents (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    filename text NOT NULL,
-    source text,
-    uploader_id uuid REFERENCES users(id) ON DELETE SET NULL,
-    uploaded_at timestamptz NOT NULL DEFAULT now(),
-    metadata jsonb
-);
-
 COMMIT;
 
 -- Useful queries:
