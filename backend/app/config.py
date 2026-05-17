@@ -23,6 +23,7 @@ def build_database_uri() -> str:
 
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
