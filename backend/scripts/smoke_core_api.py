@@ -24,7 +24,7 @@ load_dotenv(os.path.join(project_root, ".env"))
 
 from app import create_app
 from app.extensions import db
-from app.models import Conversation, User
+from app.models import Conversation, Message, User
 
 
 def main() -> int:
@@ -107,6 +107,60 @@ def main() -> int:
     if update_conv.status_code != 200:
         return 1
 
+    message = client.post(
+        f"/api/v1/conversations/{conversation_id}/messages",
+        headers=headers,
+        json={"role": "user", "content": "Bonjour, voici un message de test."},
+    )
+    print("message create:", message.status_code)
+    print(message.get_json())
+    if message.status_code != 201:
+        return 1
+
+    message_id = message.get_json()["message"]["id"]
+
+    message_list = client.get(f"/api/v1/conversations/{conversation_id}/messages", headers=headers)
+    print("message list:", message_list.status_code)
+    print(message_list.get_json())
+    if message_list.status_code != 200:
+        return 1
+
+    message_get = client.get(
+        f"/api/v1/conversations/{conversation_id}/messages/{message_id}",
+        headers=headers,
+    )
+    print("message get:", message_get.status_code)
+    print(message_get.get_json())
+    if message_get.status_code != 200:
+        return 1
+
+    message_update = client.patch(
+        f"/api/v1/conversations/{conversation_id}/messages/{message_id}",
+        headers=headers,
+        json={"content": "Message de test mis à jour."},
+    )
+    print("message update:", message_update.status_code)
+    print(message_update.get_json())
+    if message_update.status_code != 200:
+        return 1
+
+    transient_message = client.post(
+        f"/api/v1/conversations/{conversation_id}/messages",
+        headers=headers,
+        json={"role": "assistant", "content": "Message temporaire."},
+    )
+    if transient_message.status_code != 201:
+        return 1
+    transient_message_id = transient_message.get_json()["message"]["id"]
+    message_delete = client.delete(
+        f"/api/v1/conversations/{conversation_id}/messages/{transient_message_id}",
+        headers=headers,
+    )
+    print("message delete:", message_delete.status_code)
+    print(message_delete.get_json())
+    if message_delete.status_code != 200:
+        return 1
+
     transient = client.post(
         "/api/v1/conversations",
         headers=headers,
@@ -148,12 +202,28 @@ def main() -> int:
         print("conversation row:")
         print(dict(conv_row) if conv_row else None)
 
+        msg_row = db.session.execute(
+            text(
+                """
+                SELECT id, conversation_id, user_id, role, content, created_at
+                FROM messages
+                WHERE id = :message_id
+                """
+            ),
+            {"message_id": message_id},
+        ).mappings().first()
+        print("message row:")
+        print(dict(msg_row) if msg_row else None)
+
         orm_user = User.query.filter_by(email=email).first()
         orm_conv = db.session.get(Conversation, conversation_id)
+        orm_msg = db.session.get(Message, message_id)
         print("orm user:")
         print(orm_user.to_dict() if orm_user else None)
         print("orm conversation:")
         print(orm_conv.to_dict() if orm_conv else None)
+        print("orm message:")
+        print(orm_msg.to_dict() if orm_msg else None)
 
     print("OK: account and conversation created and verified in PostgreSQL")
     return 0
