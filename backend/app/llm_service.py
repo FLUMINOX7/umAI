@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "auto").strip().lower()
 LLM_API_KEY = os.environ.get("LLM_API_KEY")
-LLM_OPENROUTER_URL = os.environ.get("LLM_URL") or "https://api.openrouter.ai/v1/chat/completions"
+LLM_OPENROUTER_URL = os.environ.get("LLM_URL") or "https://openrouter.ai/api/v1/chat/completions"
 LLM_MODEL = os.environ.get("LLM_MODEL", "mistralai/mistral-7b-instruct")
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
