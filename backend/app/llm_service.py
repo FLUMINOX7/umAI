@@ -108,6 +108,13 @@ def generate_chat_response(
     except LLMServiceError as exc:
         openrouter_error = str(exc)
 
+    # If OpenRouter reports the model is not available, try a safe public model
+    if openrouter_error and "No endpoints found" in openrouter_error:
+        try:
+            return _call_openrouter(messages, model="openrouter/free", stream=stream)
+        except LLMServiceError as exc:
+            openrouter_error = openrouter_error + "; fallback openrouter/free failed: " + str(exc)
+
     try:
         return _call_ollama(messages, model=_resolve_ollama_model(resolved_model), stream=stream)
     except LLMServiceError as exc:
