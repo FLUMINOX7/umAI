@@ -102,22 +102,29 @@ def generate_chat_response(
     if resolved_provider == "openrouter":
         return _call_openrouter(messages, model=resolved_model, stream=stream)
 
-    openrouter_error = None
-    try:
-        return _call_openrouter(messages, model=resolved_model, stream=stream)
-    except LLMServiceError as exc:
-        openrouter_error = str(exc)
-
-    # If OpenRouter reports the model is not available, try a safe public model
-    if openrouter_error and "No endpoints found" in openrouter_error:
+    # auto: prefer Ollama (local) first, then OpenRouter fallback
+    if resolved_provider == "auto":
+        ollama_error = None
         try:
-            return _call_openrouter(messages, model="openrouter/free", stream=stream)
+            return _call_ollama(messages, model=_resolve_ollama_model(resolved_model), stream=stream)
         except LLMServiceError as exc:
-            openrouter_error = openrouter_error + "; fallback openrouter/free failed: " + str(exc)
+            ollama_error = str(exc)
 
-    try:
-        return _call_ollama(messages, model=_resolve_ollama_model(resolved_model), stream=stream)
-    except LLMServiceError as exc:
+        # Try OpenRouter, prefer public fallback model if requested model missing
+        openrouter_error = None
+        try:
+            return _call_openrouter(messages, model=resolved_model, stream=stream)
+        except LLMServiceError as exc:
+            openrouter_error = str(exc)
+
+        if openrouter_error and "No endpoints found" in openrouter_error:
+            try:
+                return _call_openrouter(messages, model="openrouter/free", stream=stream)
+            except LLMServiceError as exc:
+                openrouter_error = openrouter_error + "; fallback openrouter/free failed: " + str(exc)
+
+        if ollama_error and openrouter_error:
+            raise LLMServiceError(f"Ollama failed ({ollama_error}); OpenRouter failed ({openrouter_error})")
         if openrouter_error:
-            raise LLMServiceError(f"OpenRouter failed ({openrouter_error}); Ollama failed ({exc})") from exc
-        raise
+            raise LLMServiceError(openrouter_error)
+        raise LLMServiceError(ollama_error or "no provider available")
