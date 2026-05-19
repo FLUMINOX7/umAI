@@ -22,6 +22,7 @@ from app import create_app
 def main():
     app = create_app()
     client = app.test_client()
+    provider = (os.environ.get("LLM_PROVIDER") or "auto").strip().lower()
 
     # create a temporary user via existing auth endpoint
     suffix = int(time.time())
@@ -45,8 +46,8 @@ def main():
         return 1
     session_id = conv.get_json()["session"]["id"]
 
-    # Require an OpenRouter API key for this smoke test.
-    if not os.environ.get("LLM_API_KEY"):
+    # Require an OpenRouter API key only when the smoke test is explicitly targeting OpenRouter.
+    if provider == "openrouter" and not os.environ.get("LLM_API_KEY"):
         print("LLM_API_KEY not set in .env — obtain an OpenRouter API key and set LLM_API_KEY in backend/.env to run this test.")
         print("See https://openrouter.ai/ or ask me and I'll provide step-by-step.")
         return 2
@@ -55,7 +56,11 @@ def main():
     resp = client.post(
         f"/api/v1/llm/sessions/{session_id}/chat",
         headers=headers,
-        json={"content": "Donne-moi une recette simple de crêpes.", "model": os.environ.get("LLM_MODEL")},
+        json={
+            "content": "Donne-moi une recette simple de crêpes.",
+            "model": os.environ.get("LLM_MODEL"),
+            "provider": provider,
+        },
     )
     print("session chat:", resp.status_code)
     print(resp.get_json())
