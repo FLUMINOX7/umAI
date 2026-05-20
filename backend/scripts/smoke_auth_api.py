@@ -41,7 +41,7 @@ def main() -> int:
     password = "TestPass123!"
 
     register_response = client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={"username": username, "email": email, "password": password},
     )
     print("register status:", register_response.status_code)
@@ -53,7 +53,7 @@ def main() -> int:
     headers = {"Authorization": f"Bearer {token}"}
 
     login_response = client.post(
-        "/api/v1/auth/login",
+        "/api/auth/login",
         json={"identifier": username, "password": password},
     )
     print("login status:", login_response.status_code)
@@ -61,14 +61,14 @@ def main() -> int:
     if login_response.status_code != 200:
         return 1
 
-    me_response = client.get("/api/v1/auth/me", headers=headers)
+    me_response = client.get("/api/auth/me", headers=headers)
     print("me status:", me_response.status_code)
     print(me_response.get_json())
     if me_response.status_code != 200:
         return 1
 
     update_response = client.patch(
-        "/api/v1/auth/me",
+        "/api/auth/me",
         headers=headers,
         json={"username": f"{username}_updated"},
     )
@@ -82,7 +82,7 @@ def main() -> int:
     transient_email = f"{transient_username}@example.com"
 
     transient_register = client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={"username": transient_username, "email": transient_email, "password": password},
     )
     print("transient register status:", transient_register.status_code)
@@ -91,7 +91,7 @@ def main() -> int:
         return 1
 
     transient_headers = {"Authorization": f"Bearer {transient_register.get_json()['access_token']}"}
-    delete_response = client.delete("/api/v1/auth/me", headers=transient_headers)
+    delete_response = client.delete("/api/auth/me", headers=transient_headers)
     print("delete status:", delete_response.status_code)
     print(delete_response.get_json())
     if delete_response.status_code != 200:

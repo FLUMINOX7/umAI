@@ -44,7 +44,6 @@ def get_session(session_id):
     conv = _get_owned_conversation(session_id, user_id)
     if conv is None:
         return jsonify({"error": "session not found"}), 404
-    # include messages history
     messages = MessageService.list_conversation_messages(session_id)
     return jsonify({"session": conv.to_dict(), "messages": [m.to_dict() for m in messages]})
 
@@ -75,10 +74,7 @@ def session_chat(session_id):
     model = payload.get("model")
     provider = payload.get("provider")
 
-    # Save user message
     user_msg = MessageService.create_message(session_id, user_id=user_id, role="user", content=content)
-
-    # Build messages for LLM from history + new user message
     history = MessageService.list_conversation_messages(session_id)
     messages = [{"role": m.role, "content": m.content} for m in history]
 
@@ -89,7 +85,6 @@ def session_chat(session_id):
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    # Save assistant reply
     assistant_msg = MessageService.create_message(session_id, user_id=None, role="assistant", content=reply_text)
 
     return jsonify({"reply": assistant_msg.to_dict(), "user_message": user_msg.to_dict()})

@@ -5,7 +5,7 @@ Ce document résume quoi envoyer dans Postman, quoi attendre en retour, et comme
 ## Base URL
 
 ```text
-http://localhost:5000/api/v1
+http://localhost:5000/api
 ```
 
 ## Headers communs
@@ -21,7 +21,7 @@ Content-Type: application/json
 
 Crée un environnement Postman avec ces variables :
 
-- `base_url` = `http://localhost:5000/api/v1`
+- `base_url` = `http://localhost:5000/api`
 - `token` = vide au départ, puis rempli après login
 - `conversation_id` = id d'une conversation créée
 - `message_id` = id d'un message créé

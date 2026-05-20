@@ -37,7 +37,7 @@ def main() -> int:
     password = "TestPass123!"
 
     register = client.post(
-        "/api/v1/auth/register",
+        "/api/auth/register",
         json={"username": username, "email": email, "password": password},
     )
     print("register:", register.status_code)
@@ -49,7 +49,7 @@ def main() -> int:
     headers = {"Authorization": f"Bearer {token}"}
 
     login = client.post(
-        "/api/v1/auth/login",
+        "/api/auth/login",
         json={"identifier": username, "password": password},
     )
     print("login:", login.status_code)
@@ -57,14 +57,14 @@ def main() -> int:
     if login.status_code != 200:
         return 1
 
-    me = client.get("/api/v1/auth/me", headers=headers)
+    me = client.get("/api/auth/me", headers=headers)
     print("me:", me.status_code)
     print(me.get_json())
     if me.status_code != 200:
         return 1
 
     update_me = client.patch(
-        "/api/v1/auth/me",
+        "/api/auth/me",
         headers=headers,
         json={"username": f"{username}_updated"},
     )
@@ -74,7 +74,7 @@ def main() -> int:
         return 1
 
     conversation = client.post(
-        "/api/v1/conversations",
+        "/api/conversations",
         headers=headers,
         json={"title": "Conversation de test"},
     )
@@ -85,20 +85,20 @@ def main() -> int:
 
     conversation_id = conversation.get_json()["conversation"]["id"]
 
-    list_resp = client.get("/api/v1/conversations", headers=headers)
+    list_resp = client.get("/api/conversations", headers=headers)
     print("conversation list:", list_resp.status_code)
     print(list_resp.get_json())
     if list_resp.status_code != 200:
         return 1
 
-    get_resp = client.get(f"/api/v1/conversations/{conversation_id}", headers=headers)
+    get_resp = client.get(f"/api/conversations/{conversation_id}", headers=headers)
     print("conversation get:", get_resp.status_code)
     print(get_resp.get_json())
     if get_resp.status_code != 200:
         return 1
 
     update_conv = client.patch(
-        f"/api/v1/conversations/{conversation_id}",
+        f"/api/conversations/{conversation_id}",
         headers=headers,
         json={"title": "Conversation modifiée"},
     )
@@ -108,7 +108,7 @@ def main() -> int:
         return 1
 
     message = client.post(
-        f"/api/v1/conversations/{conversation_id}/messages",
+        f"/api/conversations/{conversation_id}/messages",
         headers=headers,
         json={"role": "user", "content": "Bonjour, voici un message de test."},
     )
@@ -119,14 +119,14 @@ def main() -> int:
 
     message_id = message.get_json()["message"]["id"]
 
-    message_list = client.get(f"/api/v1/conversations/{conversation_id}/messages", headers=headers)
+    message_list = client.get(f"/api/conversations/{conversation_id}/messages", headers=headers)
     print("message list:", message_list.status_code)
     print(message_list.get_json())
     if message_list.status_code != 200:
         return 1
 
     message_get = client.get(
-        f"/api/v1/conversations/{conversation_id}/messages/{message_id}",
+        f"/api/conversations/{conversation_id}/messages/{message_id}",
         headers=headers,
     )
     print("message get:", message_get.status_code)
@@ -135,7 +135,7 @@ def main() -> int:
         return 1
 
     message_update = client.patch(
-        f"/api/v1/conversations/{conversation_id}/messages/{message_id}",
+        f"/api/conversations/{conversation_id}/messages/{message_id}",
         headers=headers,
         json={"content": "Message de test mis à jour."},
     )
@@ -145,7 +145,7 @@ def main() -> int:
         return 1
 
     transient_message = client.post(
-        f"/api/v1/conversations/{conversation_id}/messages",
+        f"/api/conversations/{conversation_id}/messages",
         headers=headers,
         json={"role": "assistant", "content": "Message temporaire."},
     )
@@ -153,7 +153,7 @@ def main() -> int:
         return 1
     transient_message_id = transient_message.get_json()["message"]["id"]
     message_delete = client.delete(
-        f"/api/v1/conversations/{conversation_id}/messages/{transient_message_id}",
+        f"/api/conversations/{conversation_id}/messages/{transient_message_id}",
         headers=headers,
     )
     print("message delete:", message_delete.status_code)
@@ -162,14 +162,14 @@ def main() -> int:
         return 1
 
     transient = client.post(
-        "/api/v1/conversations",
+        "/api/conversations",
         headers=headers,
         json={"title": "Temporaire"},
     )
     if transient.status_code != 201:
         return 1
     transient_id = transient.get_json()["conversation"]["id"]
-    delete_resp = client.delete(f"/api/v1/conversations/{transient_id}", headers=headers)
+    delete_resp = client.delete(f"/api/conversations/{transient_id}", headers=headers)
     print("conversation delete:", delete_resp.status_code)
     print(delete_resp.get_json())
     if delete_resp.status_code != 200:
