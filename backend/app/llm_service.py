@@ -6,6 +6,7 @@ LLM_API_KEY = os.environ.get("LLM_API_KEY")
 LLM_OPENROUTER_URL = os.environ.get("LLM_URL") or "https://openrouter.ai/api/v1/chat/completions"
 MODELS = [
     "deepseek/deepseek-v4-flash:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
     "openrouter/free",
 ]
 
