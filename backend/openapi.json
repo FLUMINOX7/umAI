@@ -3,7 +3,7 @@
   "info": {
     "title": "umAI API",
     "version": "1.0.0",
-    "description": "API Flask pour authentification, conversations, messages et sessions LLM."
+    "description": "API Flask pour l'authentification, les conversations, les messages et les sessions LLM. Les routes LLM s'appuient sur OpenRouter."
   },
   "servers": [
     {
@@ -262,8 +262,8 @@
                 "type": "object",
                 "required": ["content"],
                 "properties": {
-                  "content": {"type": "string"},
-                  "model": {"type": "string"}
+                  "content": {"type": "string", "description": "Message utilisateur envoyé à la session LLM."},
+                  "model": {"type": "string", "description": "Slug OpenRouter du modèle à utiliser pour cette requête. Si absent, le backend essaie les modèles configurés dans l'ordre puis openrouter/free."}
                 }
               }
             }
