@@ -263,8 +263,7 @@
                 "required": ["content"],
                 "properties": {
                   "content": {"type": "string"},
-                  "model": {"type": "string"},
-                  "provider": {"type": "string", "enum": ["auto", "ollama", "openrouter"]}
+                  "model": {"type": "string"}
                 }
               }
             }

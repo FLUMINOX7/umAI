@@ -72,14 +72,13 @@ def session_chat(session_id):
     if not content:
         return jsonify({"error": "content is required"}), 400
     model = payload.get("model")
-    provider = payload.get("provider")
 
     user_msg = MessageService.create_message(session_id, user_id=user_id, role="user", content=content)
     history = MessageService.list_conversation_messages(session_id)
     messages = [{"role": m.role, "content": m.content} for m in history]
 
     try:
-        reply_text = generate_chat_response(messages, model=model, provider=provider)
+        reply_text = generate_chat_response(messages, model=model)
     except LLMServiceError as exc:
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:
