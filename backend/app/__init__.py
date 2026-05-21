@@ -1,9 +1,10 @@
 import os
 
 from flask import Flask
+from flask import jsonify, send_file
 from dotenv import load_dotenv
 
-from .api.v1 import api_v1
+from .api import api_bp
 from .config import build_database_uri, get_config
 from .extensions import db, jwt, migrate
 
@@ -23,6 +24,23 @@ def create_app() -> Flask:
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    app.register_blueprint(api_v1, url_prefix="/api/v1")
+    try:
+        from flask_swagger_ui import get_swaggerui_blueprint
+
+        swaggerui_blueprint = get_swaggerui_blueprint(
+            "/apidocs",
+            "/openapi.json",
+            config={"app_name": "umAI API"},
+        )
+        app.register_blueprint(swaggerui_blueprint, url_prefix="/apidocs")
+    except Exception:
+        pass
+
+    @app.get("/openapi.json")
+    def openapi_spec():
+        spec_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "openapi.json"))
+        return send_file(spec_path, mimetype="application/json")
+
+    app.register_blueprint(api_bp, url_prefix="/api")
 
     return app
