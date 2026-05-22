@@ -41,3 +41,5 @@ Thumbs.db
 faiss_index/
 .cache/
 
+#pdfs
+docs/*.pdf
