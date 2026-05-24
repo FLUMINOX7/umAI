@@ -18,7 +18,14 @@ def create_app() -> Flask:
     app.config.from_object(get_config())
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", app.config.get("SECRET_KEY", "change-me"))
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"])
+
+    # users, conversations et messages
     app.config["SQLALCHEMY_DATABASE_URI"] = build_database_uri()
+
+    # documents et doc_chunks
+    app.config["SQLALCHEMY_BINDS"] = {
+        "docs": build_documents_database_uri()
+    }
 
     db.init_app(app)
     migrate.init_app(app, db)
