@@ -98,6 +98,7 @@ Endoints disponibles :
 - `GET /api/rag/status`
 - `POST /api/rag/ingest`
 - `POST /api/rag/query`
+- `POST /api/llm/sessions/<session_id>/chat` avec `use_rag=true` pour activer le RAG dans le flux de chat existant
 
 Le stockage se fait localement dans `backend/instance/rag/faiss_index` par défaut.
 Les PDF sont lus par défaut depuis `backend/cuisine_pdf/`.

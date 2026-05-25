@@ -393,8 +393,55 @@ Réponse attendue : `200`
 ```json
 {
   "content": "Donne-moi une recette simple de crêpes.",
+  "use_rag": true,
+  "top_k": 4,
   "model": "mistralai/mistral-7b-instruct",
   "provider": "auto"
+}
+```
+
+Pour désactiver le RAG, envoie simplement `"use_rag": false` ou n'envoie pas le champ.
+
+### Utiliser le RAG directement
+
+- Méthode : `POST`
+- URL : `/rag/query`
+- Body JSON :
+
+```json
+{
+  "question": "Je cherche une recette de dessert rapide ou de gâteau",
+  "top_k": 4,
+  "model": "mistralai/mistral-7b-instruct"
+}
+```
+
+Réponse attendue : `200`
+
+```json
+{
+  "answer": "...",
+  "context": "...",
+  "sources": [
+    { "source_file": "...", "page": 1, "content": "..." }
+  ]
+}
+```
+
+### Reconstruire l'index RAG
+
+- Méthode : `POST`
+- URL : `/rag/ingest`
+
+Réponse attendue : `201`
+
+```json
+{
+  "message": "RAG index rebuilt successfully",
+  "processed_files": 2,
+  "stored_documents": 2,
+  "stored_chunks": 579,
+  "vector_store_dir": "..."
 }
 ```
 
