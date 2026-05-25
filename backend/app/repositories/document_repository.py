@@ -12,6 +12,10 @@ class DocumentRepository:
         return Document.query.get(document_id)
 
     @staticmethod
+    def get_by_source(source: str):
+        return Document.query.filter_by(source=source).first()
+
+    @staticmethod
     def create(source: str, content: str):
         doc = Document(source=source, content=content)
         db.session.add(doc)
@@ -24,3 +28,15 @@ class DocumentRepository:
         db.session.add(chunk)
         db.session.commit()
         return chunk
+
+    @staticmethod
+    def delete_by_source(source: str):
+        document = DocumentRepository.get_by_source(source)
+        if document is None:
+            return False
+
+        for chunk in list(document.chunks):
+            db.session.delete(chunk)
+        db.session.delete(document)
+        db.session.commit()
+        return True

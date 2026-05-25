@@ -5,7 +5,7 @@ from flask import jsonify, send_file
 from dotenv import load_dotenv
 
 from .api import api_bp
-from .config import build_database_uri, get_config
+from .config import build_database_uri, build_documents_database_uri, get_config
 from .extensions import db, jwt, migrate
 
 

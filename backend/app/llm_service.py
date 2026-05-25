@@ -1,9 +1,14 @@
-import os
 import json
+import os
 from typing import Dict, List, Optional
 
-LLM_API_KEY = os.environ.get("LLM_API_KEY")
-LLM_OPENROUTER_URL = os.environ.get("LLM_URL") or "https://openrouter.ai/api/v1/chat/completions"
+
+def _get_llm_api_key() -> Optional[str]:
+    return os.getenv("LLM_API_KEY")
+
+
+def _get_openrouter_url() -> str:
+    return os.getenv("LLM_URL") or "https://openrouter.ai/api/v1/chat/completions"
 MODELS = [
     "deepseek/deepseek-v4-flash:free",
     "meta-llama/llama-3.3-70b-instruct:free",
@@ -63,12 +68,13 @@ def _extract_openrouter_text(data: Dict[str, object]) -> str:
 
 def _call_openrouter(messages: List[Dict[str, str]], model: str, stream: bool = False) -> str:
     """Call OpenRouter's chat completions endpoint and return text."""
-    if not LLM_API_KEY:
+    api_key = _get_llm_api_key()
+    if not api_key:
         raise LLMServiceError("LLM_API_KEY is not set; set it in your .env to call OpenRouter")
 
-    headers = {"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {"model": model, "messages": messages, "stream": stream}
-    data = _post_json(LLM_OPENROUTER_URL, payload, headers=headers)
+    data = _post_json(_get_openrouter_url(), payload, headers=headers)
     return _extract_openrouter_text(data)
 
 
