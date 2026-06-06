@@ -76,14 +76,35 @@ def session_chat(session_id):
     user_msg = MessageService.create_message(session_id, user_id=user_id, role="user", content=content)
     history = MessageService.list_conversation_messages(session_id)
     messages = [{"role": m.role, "content": m.content} for m in history]
+    use_rag = bool(payload.get("use_rag"))
 
     try:
-        reply_text = generate_chat_response(messages, model=model)
+        if use_rag:
+            from rag.service import RagService
+
+            rag_service = RagService()
+            rag_result = rag_service.ask(
+                question=content,
+                conversation_history=messages,
+                top_k=payload.get("top_k") if isinstance(payload.get("top_k"), int) else None,
+                model=model,
+            )
+            reply_text = rag_result.answer
+            assistant_metadata = {"rag": True, "context": rag_result.context, "sources": rag_result.sources}
+        else:
+            reply_text = generate_chat_response(messages, model=model)
+            assistant_metadata = None
     except LLMServiceError as exc:
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
-    assistant_msg = MessageService.create_message(session_id, user_id=None, role="assistant", content=reply_text)
+    assistant_msg = MessageService.create_message(
+        session_id,
+        user_id=None,
+        role="assistant",
+        content=reply_text,
+        metadata=assistant_metadata,
+    )
 
     return jsonify({"reply": assistant_msg.to_dict(), "user_message": user_msg.to_dict()})

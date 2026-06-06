@@ -11,6 +11,7 @@ Le backend suit une structure en couches pour séparer clairement les responsabi
 - `app/repositories/` centralise l'accès aux données.
 - `app/models/` définit les modèles SQLAlchemy.
 - `app/llm_service.py` gère les appels OpenRouter et l'ordre de fallback des modèles.
+- `rag/` contient le pipeline RAG découpé en modules: chargement PDF, chunking, embeddings, index FAISS, prompt et service.
 - `app/extensions.py` initialise SQLAlchemy, JWT et Flask-Migrate.
 - `app/__init__.py` construit l'application Flask, branche le préfixe `/api` et sert la documentation Swagger.
 
@@ -37,6 +38,10 @@ cp .env.example .env
 - `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - ou `DATABASE_URL`
 - `LLM_API_KEY` pour l'intégration OpenRouter
+- `RAG_DOCS_DIR` si les PDF ne sont pas dans `../docs`
+- `RAG_DOCS_DIR` si les PDF ne sont pas dans `backend/cuisine_pdf`
+- `RAG_VECTOR_STORE_DIR` pour stocker l'index FAISS localement
+- `RAG_EMBEDDING_MODEL`, `RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`, `RAG_TOP_K`
 
 3. Ajuster le reste si nécessaire :
 
@@ -76,6 +81,29 @@ Les sessions LLM passent par OpenRouter uniquement.
 Le service essaie les modèles configurés dans `app/llm_service.py` dans l'ordre, puis tombe sur `openrouter/free` en dernier recours.
 
 Le champ `model` envoyé à l'API de chat permet de forcer un modèle précis pour une requête donnée.
+
+## Intégration RAG
+
+Le pipeline RAG est séparé dans `backend/rag/` :
+
+- `loaders.py` charge les PDF
+- `chunking.py` découpe les documents en chunks
+- `embeddings.py` crée les vecteurs
+- `vector_store.py` construit et charge l'index FAISS
+- `prompt.py` transforme les chunks retrouvés en contexte de prompt
+- `service.py` orchestre l'ingestion et la requête RAG
+
+Endoints disponibles :
+
+- `GET /api/rag/status`
+- `POST /api/rag/ingest`
+- `POST /api/rag/query`
+- `POST /api/llm/sessions/<session_id>/chat` avec `use_rag=true` pour activer le RAG dans le flux de chat existant
+
+Le stockage se fait localement dans `backend/instance/rag/faiss_index` par défaut.
+Les PDF sont lus par défaut depuis `backend/cuisine_pdf/`.
+
+Un script de démonstration existe aussi dans `backend/scripts/rag_demo.py` pour reconstruire l'index, afficher le contexte récupéré et, si `LLM_API_KEY` est défini, produire la réponse finale du LLM.
 
 ## Endpoints principaux
 

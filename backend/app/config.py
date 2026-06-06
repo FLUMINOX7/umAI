@@ -20,6 +20,12 @@ def build_database_uri() -> str:
 
     return "sqlite:///umai.db"
 
+def build_documents_database_uri() -> str:
+    documents_database_url = os.getenv("DOCUMENTS_DATABASE_URL")
+    if documents_database_url:
+        return documents_database_url
+
+    return "sqlite:///documents.db"
 
 class BaseConfig:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")

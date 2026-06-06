@@ -15,7 +15,8 @@
     {"name": "Auth"},
     {"name": "Conversations"},
     {"name": "Messages"},
-    {"name": "LLM"}
+    {"name": "LLM"},
+    {"name": "RAG"}
   ],
   "components": {
     "securitySchemes": {
@@ -90,6 +91,81 @@
         "responses": {
           "200": {
             "description": "Service is running"
+          }
+        }
+      }
+    },
+    "/rag/status": {
+      "get": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Get RAG status",
+        "responses": {
+          "200": {
+            "description": "RAG status"
+          }
+        }
+      }
+    },
+    "/rag/ingest": {
+      "post": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Rebuild the RAG index from PDFs",
+        "responses": {
+          "201": {
+            "description": "RAG index rebuilt"
+          }
+        }
+      }
+    },
+    "/rag/query": {
+      "post": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Query the RAG pipeline directly",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question"],
+                "properties": {
+                  "question": {"type": "string", "description": "Question utilisateur."},
+                  "top_k": {"type": "integer", "description": "Nombre de chunks à récupérer."},
+                  "model": {"type": "string", "description": "Slug OpenRouter optionnel."},
+                  "conversation_history": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {"type": "string"},
+                        "content": {"type": "string"}
+                      }
+                    },
+                    "description": "Historique de conversation optionnel à injecter dans le prompt RAG."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RAG answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {"type": "string"},
+                    "context": {"type": "string"},
+                    "sources": {"type": "array"}
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -263,6 +339,8 @@
                 "required": ["content"],
                 "properties": {
                   "content": {"type": "string", "description": "Message utilisateur envoyé à la session LLM."},
+                    "use_rag": {"type": "boolean", "description": "Active ou désactive le pipeline RAG pour cette requête. Si true, le backend récupère du contexte depuis l'index vectoriel avant d'appeler le LLM."},
+                    "top_k": {"type": "integer", "description": "Nombre de chunks à récupérer si use_rag=true."},
                   "model": {"type": "string", "description": "Slug OpenRouter du modèle à utiliser pour cette requête. Si absent, le backend essaie les modèles configurés dans l'ordre puis openrouter/free."}
                 }
               }
