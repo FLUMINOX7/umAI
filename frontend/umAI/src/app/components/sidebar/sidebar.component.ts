@@ -1,12 +1,13 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ConversationCardComponent } from './conversation-card.component';
+import { HealthStatusComponent } from '../health-status/health-status.component';
 import { Conversation } from '../../interfaces/chat.interface';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, ConversationCardComponent],
+  imports: [CommonModule, ConversationCardComponent, HealthStatusComponent],
   template: `
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -18,6 +19,8 @@ import { Conversation } from '../../interfaces/chat.interface';
           {{ isLoggedIn ? 'Déconnexion' : 'Connexion' }}
         </button>
       </div>
+
+      <app-health-status></app-health-status>
 
       <div class="sidebar-title">Conversations enregistrées</div>
         <div class="conversation-list">
