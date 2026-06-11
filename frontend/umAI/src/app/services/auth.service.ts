@@ -12,6 +12,10 @@ export class AuthService {
     return this.http.post('/api/auth/register', payload);
   }
 
+  login(payload: { identifier: string; password: string }): Observable<any> {
+    return this.http.post('/api/auth/login', payload);
+  }
+
   getMe(): Observable<any> {
     return this.http.get('/api/auth/me');
   }
