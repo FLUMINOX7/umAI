@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -85,7 +85,7 @@ export class RegisterModalComponent {
   loading = false;
   error: string | null = null;
 
-  constructor(private fb: FormBuilder, private auth: AuthService) {
+  constructor(private fb: FormBuilder, private auth: AuthService, private cd: ChangeDetectorRef) {
     this.form = this.fb.group({
       username: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
@@ -111,13 +111,19 @@ export class RegisterModalComponent {
         if (token) {
           this.auth.saveToken(token);
         }
+        this.cd.markForCheck();
         this.registered.emit(res);
         this.closeModal.emit();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.loading = false;
-        console.error('Registration error', err);
-        this.error = this.parseError(err);
+        console.error('Registration error full:', err);
+        console.error('Error status:', err?.status);
+        console.error('Error error:', err?.error);
+        const parsedError = this.parseError(err);
+        console.error('Parsed error:', parsedError);
+        this.error = parsedError;
+        this.cd.markForCheck();
       }
     });
   }
@@ -127,23 +133,48 @@ export class RegisterModalComponent {
       return "Erreur inconnue lors de l'inscription.";
     }
 
+    console.log('parseError input:', err);
+
+    // Extract error message from various response formats
+    let errorMsg: string | null = null;
+
+    // Try to get from err.error (the response body)
     if (err.error) {
+      console.log('err.error is:', err.error, 'type:', typeof err.error);
+      
       if (typeof err.error === 'string' && err.error.trim()) {
-        return err.error;
-      }
-      if (typeof err.error === 'object' && err.error.message) {
-        return err.error.message;
+        errorMsg = err.error;
+      } else if (typeof err.error === 'object') {
+        // Try to find the error message in nested properties
+        errorMsg = err.error.error || err.error.message || null;
       }
     }
 
+    if (errorMsg) {
+      console.log('Found errorMsg:', errorMsg);
+      // Translate common error messages to French
+      const translations: { [key: string]: string } = {
+        'username already exists': 'Ce nom d\'utilisateur est déjà pris',
+        'email already exists': 'Cet email est déjà enregistré',
+        'invalid email': 'Email invalide',
+        'password too short': 'Le mot de passe est trop court'
+      };
+      const translated = translations[errorMsg.toLowerCase()] || errorMsg;
+      console.log('Translated to:', translated);
+      return translated;
+    }
+
     if (err.message) {
+      console.log('Using err.message:', err.message);
       return err.message;
     }
 
     if (err.status || err.statusText) {
+      console.log('Using status text:', err.status, err.statusText);
       return `Erreur ${err.status || ''} ${err.statusText || ''}`.trim();
     }
 
+    console.log('Returning generic error');
     return "Erreur lors de l'inscription.";
   }
 }

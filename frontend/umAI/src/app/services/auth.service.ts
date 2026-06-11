@@ -12,6 +12,10 @@ export class AuthService {
     return this.http.post('/api/auth/register', payload);
   }
 
+  getMe(): Observable<any> {
+    return this.http.get('/api/auth/me');
+  }
+
   saveToken(token: string) {
     try {
       localStorage.setItem(this.tokenKey, token);
@@ -32,5 +36,9 @@ export class AuthService {
     try {
       localStorage.removeItem(this.tokenKey);
     } catch (e) {}
+  }
+
+  isAuthenticated(): boolean {
+    return this.getToken() !== null;
   }
 }
