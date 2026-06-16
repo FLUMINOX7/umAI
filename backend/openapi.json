@@ -339,8 +339,10 @@
                 "required": ["content"],
                 "properties": {
                   "content": {"type": "string", "description": "Message utilisateur envoyé à la session LLM."},
-                    "use_rag": {"type": "boolean", "description": "Active ou désactive le pipeline RAG pour cette requête. Si true, le backend récupère du contexte depuis l'index vectoriel avant d'appeler le LLM."},
-                    "top_k": {"type": "integer", "description": "Nombre de chunks à récupérer si use_rag=true."},
+                  "retrieval_mode": {"type": "string", "enum": ["none", "rag", "web"], "description": "Mode de récupération de contexte. none = LLM seul, rag = PDF cuisine, web = recherche DuckDuckGo."},
+                  "use_rag": {"type": "boolean", "description": "Compatibilité ascendante. Si true, équivaut à retrieval_mode=rag."},
+                  "use_web_search": {"type": "boolean", "description": "Compatibilité ascendante. Si true, équivaut à retrieval_mode=web."},
+                  "top_k": {"type": "integer", "description": "Nombre de chunks ou de résultats à récupérer selon le mode sélectionné."},
                   "model": {"type": "string", "description": "Slug OpenRouter du modèle à utiliser pour cette requête. Si absent, le backend essaie les modèles configurés dans l'ordre puis openrouter/free."}
                 }
               }

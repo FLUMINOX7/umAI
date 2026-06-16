@@ -4,9 +4,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.llm_service import generate_chat_response, LLMServiceError
 from app.services import ConversationService, MessageService
 from app.models import Conversation
+from app.web_search_service import WebSearchService, WebSearchServiceError
 
 
 llm_bp = Blueprint("llm", __name__, url_prefix="/llm")
+
+_ALLOWED_RETRIEVAL_MODES = {"none", "rag", "web"}
 
 
 def _extract_payload():
@@ -16,6 +19,27 @@ def _extract_payload():
 
 def _get_owned_conversation(conversation_id, user_id):
     return Conversation.query.filter_by(id=conversation_id, user_id=user_id).first()
+
+
+def _build_prompt_history(messages, current_content):
+    if messages and messages[-1]["role"] == "user" and messages[-1]["content"] == current_content:
+        return messages[:-1]
+    return messages
+
+
+def _resolve_retrieval_mode(payload):
+    retrieval_mode = payload.get("retrieval_mode")
+    if isinstance(retrieval_mode, str) and retrieval_mode.strip():
+        mode = retrieval_mode.strip().lower()
+        if mode not in _ALLOWED_RETRIEVAL_MODES:
+            raise ValueError("retrieval_mode must be one of: none, rag, web")
+        return mode
+
+    if payload.get("use_web_search"):
+        return "web"
+    if payload.get("use_rag"):
+        return "rag"
+    return "none"
 
 
 @llm_bp.post("/sessions")
@@ -72,29 +96,51 @@ def session_chat(session_id):
     if not content:
         return jsonify({"error": "content is required"}), 400
     model = payload.get("model")
+    try:
+        retrieval_mode = _resolve_retrieval_mode(payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     user_msg = MessageService.create_message(session_id, user_id=user_id, role="user", content=content)
     history = MessageService.list_conversation_messages(session_id)
     messages = [{"role": m.role, "content": m.content} for m in history]
-    use_rag = bool(payload.get("use_rag"))
+    prompt_history = _build_prompt_history(messages, content)
 
     try:
-        if use_rag:
+        if retrieval_mode == "rag":
             from rag.service import RagService
 
             rag_service = RagService()
             rag_result = rag_service.ask(
                 question=content,
-                conversation_history=messages,
+                conversation_history=prompt_history,
                 top_k=payload.get("top_k") if isinstance(payload.get("top_k"), int) else None,
                 model=model,
             )
             reply_text = rag_result.answer
             assistant_metadata = {"rag": True, "context": rag_result.context, "sources": rag_result.sources}
+        elif retrieval_mode == "web":
+            web_search_service = WebSearchService()
+            search_results = web_search_service.search(
+                content,
+                max_results=payload.get("top_k") if isinstance(payload.get("top_k"), int) else None,
+            )
+            web_messages = web_search_service.build_messages(
+                question=content,
+                search_results=search_results,
+                conversation_history=prompt_history,
+            )
+            reply_text = generate_chat_response(web_messages, model=model)
+            assistant_metadata = {
+                "web_search": True,
+                "results": [result.to_dict() for result in search_results],
+            }
         else:
             reply_text = generate_chat_response(messages, model=model)
             assistant_metadata = None
     except LLMServiceError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except WebSearchServiceError as exc:
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500

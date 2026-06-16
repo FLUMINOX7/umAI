@@ -1,120 +1,151 @@
 # Backend umAI
 
-Backend Flask de umAI pour l'authentification, la gestion des conversations, l'historique de messages et l'intégration LLM via OpenRouter.
+Ce guide explique comment lancer le backend rapidement, quoi créer manuellement, et comment activer les 3 modes de chat.
 
-## Architecture
-
-Le backend suit une structure en couches pour séparer clairement les responsabilités :
-
-- `app/api/` expose les routes HTTP par domaine fonctionnel.
-- `app/services/` contient la logique métier.
-- `app/repositories/` centralise l'accès aux données.
-- `app/models/` définit les modèles SQLAlchemy.
-- `app/llm_service.py` gère les appels OpenRouter et l'ordre de fallback des modèles.
-- `rag/` contient le pipeline RAG découpé en modules: chargement PDF, chunking, embeddings, index FAISS, prompt et service.
-- `app/extensions.py` initialise SQLAlchemy, JWT et Flask-Migrate.
-- `app/__init__.py` construit l'application Flask, branche le préfixe `/api` et sert la documentation Swagger.
-
-La base de données cible est PostgreSQL. Si aucune configuration PostgreSQL n'est fournie, l'application retombe sur SQLite en local.
-
-## Prérequis
+## 1. Pré-requis
 
 - Python 3.12+
-- PostgreSQL 15+ recommandé
-- Une clé API OpenRouter pour activer les sessions LLM
+- PostgreSQL 15+
+- Une clé OpenRouter si tu veux utiliser le mode LLM ou le mode recherche web
 
-## Configuration
+## 2. Installer Le Backend
 
-1. Copier le fichier d'exemple d'environnement :
+Depuis le dossier `backend/` :
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+## 3. Préparer Les Fichiers Locaux
+
+Tu peux tout préparer d’un coup avec :
+
+```bash
+python scripts/launch_backend.py --no-debug
+```
+
+Ce script crée automatiquement :
+
+- `backend/.env` si le fichier manque
+- `backend/cuisine_pdf/`
+- `backend/instance/rag/faiss_index/`
+
+Il ne crée pas la base PostgreSQL. Cette étape reste manuelle.
+
+## 4. Créer Le Fichier `.env`
+
+Si besoin, copie l’exemple :
 
 ```bash
 cp .env.example .env
 ```
 
-2. Renseigner au minimum les variables suivantes dans `.env` :
+Exemple simple de `.env` :
 
-- `SECRET_KEY`
-- `JWT_SECRET_KEY`
-- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- ou `DATABASE_URL`
-- `LLM_API_KEY` pour l'intégration OpenRouter
-- `RAG_DOCS_DIR` si les PDF ne sont pas dans `../docs`
-- `RAG_DOCS_DIR` si les PDF ne sont pas dans `backend/cuisine_pdf`
-- `RAG_VECTOR_STORE_DIR` pour stocker l'index FAISS localement
-- `RAG_EMBEDDING_MODEL`, `RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`, `RAG_TOP_K`
+```env
+FLASK_APP=wsgi.py
+FLASK_ENV=development
+SECRET_KEY=change-me
+JWT_SECRET_KEY=change-me-too
 
-3. Ajuster le reste si nécessaire :
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=umai
+POSTGRES_USER=umai
+POSTGRES_PASSWORD=change-me
 
-- `FLASK_ENV` pour le mode de lancement
-- `LLM_URL` uniquement si tu dois surcharger l'endpoint OpenRouter par défaut
+LLM_API_KEY=ta_cle_openrouter
 
-## Installation
-
-Créer un environnement virtuel puis installer les dépendances :
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+RAG_DOCS_DIR=cuisine_pdf
+RAG_VECTOR_STORE_DIR=instance/rag/faiss_index
+RAG_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+RAG_CHUNK_SIZE=512
+RAG_CHUNK_OVERLAP=50
+RAG_TOP_K=4
 ```
 
-## Lancer le backend
+### Comment Obtenir Les Clés
 
-Depuis le dossier `backend/` :
+- `SECRET_KEY` et `JWT_SECRET_KEY` : génère des chaînes longues et aléatoires, par exemple avec `openssl rand -hex 32`.
+- `LLM_API_KEY` : crée une clé sur OpenRouter.
+- `POSTGRES_*` : crée un utilisateur PostgreSQL et une base locale pour le projet.
+
+## 5. Créer La Base De Données
+
+Le backend a besoin d’une base principale pour les utilisateurs, conversations et messages.
+
+1. Crée la base PostgreSQL si elle n’existe pas encore.
+2. Applique le schéma SQL :
+
+```bash
+psql -h localhost -U umai -d umai -f database/schema.sql
+```
+
+3. Vérifie que l’extension `uuid-ossp` est disponible dans cette base.
+
+Le bind des documents RAG utilise SQLite par défaut via `documents.db`. Tu n’as rien à créer pour lui au départ.
+
+## 6. Ajouter Les PDFs Cuisine
+
+Place les PDFs dans `backend/cuisine_pdf/`.
+
+Ce dossier est versionné pour que toute l’équipe ait le même corpus cuisine.
+
+## 7. Lancer Le Backend
+
+```bash
+python scripts/launch_backend.py
+```
+
+Ou, si tu veux le faire à la main :
 
 ```bash
 export FLASK_APP=wsgi.py
 flask run
 ```
 
-L'application sera accessible sur `http://127.0.0.1:5000`.
+Le backend démarre sur `http://127.0.0.1:5000`.
 
-## Documentation API
+## 8. Utiliser Le RAG
 
-- Swagger UI : `http://127.0.0.1:5000/apidocs`
-- Spec OpenAPI : `http://127.0.0.1:5000/openapi.json`
+Après avoir ajouté ou modifié les PDFs, reconstruis l’index :
 
-## Intégration LLM
+```bash
+POST /api/rag/ingest
+```
 
-Les sessions LLM passent par OpenRouter uniquement.
+Le mode RAG utilise les PDFs cuisine et l’index FAISS local.
 
-Le service essaie les modèles configurés dans `app/llm_service.py` dans l'ordre, puis tombe sur `openrouter/free` en dernier recours.
+## 9. Les 3 Modes De Chat
 
-Le champ `model` envoyé à l'API de chat permet de forcer un modèle précis pour une requête donnée.
+Le endpoint de chat accepte `retrieval_mode` :
 
-## Intégration RAG
+- `none` : LLM seul
+- `rag` : recherche dans les PDFs cuisine
+- `web` : recherche internet via DuckDuckGo puis réponse du LLM
 
-Le pipeline RAG est séparé dans `backend/rag/` :
+Exemple de payload :
 
-- `loaders.py` charge les PDF
-- `chunking.py` découpe les documents en chunks
-- `embeddings.py` crée les vecteurs
-- `vector_store.py` construit et charge l'index FAISS
-- `prompt.py` transforme les chunks retrouvés en contexte de prompt
-- `service.py` orchestre l'ingestion et la requête RAG
+```json
+{
+  "content": "Trouve moi une recette de gateau sans sucre",
+  "retrieval_mode": "web",
+  "top_k": 3
+}
+```
 
-Endoints disponibles :
+## 10. Ce Qui Reste Manuel
 
-- `GET /api/rag/status`
-- `POST /api/rag/ingest`
-- `POST /api/rag/query`
-- `POST /api/llm/sessions/<session_id>/chat` avec `use_rag=true` pour activer le RAG dans le flux de chat existant
+On garde volontairement en manuel :
 
-Le stockage se fait localement dans `backend/instance/rag/faiss_index` par défaut.
-Les PDF sont lus par défaut depuis `backend/cuisine_pdf/`.
+- la création de la base PostgreSQL
+- le choix des bonnes valeurs `.env`
+- l’ajout du corpus PDF cuisine quand il change
 
-Un script de démonstration existe aussi dans `backend/scripts/rag_demo.py` pour reconstruire l'index, afficher le contexte récupéré et, si `LLM_API_KEY` est défini, produire la réponse finale du LLM.
+## 11. Notes Importantes
 
-## Endpoints principaux
-
-- `GET /api/health`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `GET /api/conversations`
-- `POST /api/conversations`
-- `GET /api/conversations/<conversation_id>`
-- `POST /api/conversations/<conversation_id>/messages`
-- `GET /api/llm/sessions`
-- `POST /api/llm/sessions`
-- `POST /api/llm/sessions/<session_id>/chat`
+- `backend/instance/` reste ignoré par Git, car il contient des artefacts générés localement.
+- `backend/cuisine_pdf/` est gardé dans le dépôt pour partager le corpus cuisine.
+- La recherche web n’est pas du RAG classique. C’est une recherche web outillée, puis le LLM rédige la réponse à partir des résultats.
