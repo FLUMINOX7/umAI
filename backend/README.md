@@ -91,8 +91,6 @@ Le bind des documents RAG utilise SQLite par défaut via `documents.db`. Tu n’
 
 Place les PDFs dans `backend/cuisine_pdf/`.
 
-Ce dossier est versionné pour que toute l’équipe ait le même corpus cuisine.
-
 ## 7. Lancer Le Backend
 
 ```bash
@@ -117,6 +115,14 @@ POST /api/rag/ingest
 ```
 
 Le mode RAG utilise les PDFs cuisine et l’index FAISS local.
+
+Si tu ajoutes seulement de nouveaux PDFs, le script plus simple à lancer est :
+
+```bash
+python scripts/update_rag_index.py
+```
+
+Il ajoute seulement les nouveaux PDFs à la base documents et à FAISS. Si un PDF déjà connu a changé, il refait un rebuild complet pour rester cohérent.
 
 ## 9. Les 3 Modes De Chat
 
@@ -147,5 +153,4 @@ On garde volontairement en manuel :
 ## 11. Notes Importantes
 
 - `backend/instance/` reste ignoré par Git, car il contient des artefacts générés localement.
-- `backend/cuisine_pdf/` est gardé dans le dépôt pour partager le corpus cuisine.
 - La recherche web n’est pas du RAG classique. C’est une recherche web outillée, puis le LLM rédige la réponse à partir des résultats.
