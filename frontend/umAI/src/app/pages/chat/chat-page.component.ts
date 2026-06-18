@@ -1,10 +1,12 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatService } from '../../services/chat.service';
+import { ConversationService, ApiConversation, ApiMessage } from '../../services/conversation.service';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatHeaderComponent } from '../../components/chat-header/chat-header.component';
 import { MessageListComponent } from '../../components/message-list/message-list.component';
 import { ComposerComponent } from '../../components/composer/composer.component';
+import { Conversation, Message } from '../../interfaces/chat.interface';
 
 @Component({
   selector: 'app-chat-page',
@@ -14,32 +16,34 @@ import { ComposerComponent } from '../../components/composer/composer.component'
     SidebarComponent,
     ChatHeaderComponent,
     MessageListComponent,
-    ComposerComponent
+    ComposerComponent,
   ],
   template: `
     <div class="app-shell">
+
       <app-sidebar
-        [conversations]="conversations$()"
-        [currentIndex]="currentConversationIndex$()"
-        [isLoggedIn]="isLoggedIn"
-        (toggleLogin)="toggleLogin()"
+        [currentIndex]="selectedIndex()"
         (selectConversation)="selectConversation($event)"
-        (createConversation)="createConversation()"
-        (deleteConversation)="deleteConversation($event)"
+        (createConversation)="onSidebarCreate()"
+        (deleteConversation)="onSidebarDelete($event)"
+        (conversationsLoaded)="onConversationsLoaded($event)"
       ></app-sidebar>
 
       <main class="chat-panel">
         <app-chat-header
-          [title]="currentConversation.title"
-          [updated]="currentConversation.updated"
+          [title]="currentConversation().title"
+          [updated]="currentConversation().updated"
           (clear)="clearChat()"
         ></app-chat-header>
 
         <app-message-list
-          [messages]="currentConversation.messages"
+          [messages]="messages()"
+          (messageEdited)="onMessageEdited($event)"
+          (messageDeleted)="onMessageDeleted($event)"
         ></app-message-list>
 
         <app-composer
+          [sending]="sending()"
           (messageSent)="sendMessage($event)"
         ></app-composer>
       </main>
@@ -75,82 +79,178 @@ import { ComposerComponent } from '../../components/composer/composer.component'
     }
 
     @media (max-width: 1040px) {
-      .app-shell {
-        grid-template-columns: 1fr;
-      }
+      .app-shell { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 720px) {
-      .app-shell {
-        padding: 0.75rem;
-      }
-
-      .chat-panel {
-        border-radius: 1.25rem;
-        padding: 1rem;
-      }
+      .app-shell { padding: 0.75rem; }
+      .chat-panel { border-radius: 1.25rem; padding: 1rem; }
     }
-  `]
+  `],
 })
-export class ChatPageComponent implements OnInit {
-  isLoggedIn = false;
+export class ChatPageComponent {
 
-  constructor(private chatService: ChatService) {}
+  // ── Signaux internes ──────────────────────────────────────────────────────
 
-  // Expose les signaux directement (pas leurs valeurs)
-  get conversations$() {
-    return this.chatService.conversations$;
-  }
+  private apiConversations = signal<ApiConversation[]>([]);
+  selectedIndex = signal(0);
+  messages = signal<Message[]>([]);
+  sending = signal(false);
 
-  get currentConversationIndex$() {
-    return this.chatService.currentConversationIndex$;
-  }
+  // ── Conversation courante (computed) ──────────────────────────────────────
 
-  get currentConversation() {
-    return this.chatService.getCurrentConversation();
-  }
+  currentConversation = computed<Conversation>(() => {
+    const list  = this.apiConversations();
+    const index = this.selectedIndex();
+    const api   = list[index];
 
-  ngOnInit(): void {
-    // Initialisation si nécessaire
-  }
-
-  toggleLogin() {
-    this.isLoggedIn = !this.isLoggedIn;
-  }
-
-  selectConversation(index: number) {
-    this.chatService.selectConversation(index);
-  }
-
-  deleteConversation(index: number) {
-    this.chatService.deleteConversation(index);
-  }
-
-  createConversation() {
-    this.chatService.createConversation();
-  }
-
-  clearChat() {
-    this.chatService.clearCurrentConversation();
-  }
-
-  sendMessage(text: string) {
-    const userMessage = {
-      role: 'user' as const,
-      text,
-      timestamp: new Date()
+    const empty: Conversation = {
+      id: '', title: 'Nouvelle conversation',
+      preview: '', updated: '', messages: [],
     };
+    if (!api) return empty;
 
-    this.chatService.addMessage(userMessage);
+    return {
+      id:       api.id,
+      title:    api.title ?? 'Sans titre',
+      preview:  '',
+      updated:  api.updated_at
+        ? new Date(api.updated_at).toLocaleDateString('fr-FR', {
+            day: '2-digit', month: 'short', year: 'numeric',
+          })
+        : '',
+      messages: [],
+    };
+  });
 
-    // Simuler une réponse de l'IA après un délai
-    setTimeout(() => {
-      const aiMessage = {
-        role: 'ai' as const,
-        text: 'Je suis ici pour vous aider. Dites-moi ce que vous voulez savoir ou faire.',
-        timestamp: new Date()
-      };
-      this.chatService.addMessage(aiMessage);
-    }, 500);
+  constructor(
+    private chatService: ChatService,
+    private conversationService: ConversationService,
+  ) {
+    effect(() => {
+      const id = this.currentConversation().id;
+      if (id) this.loadMessages(id);
+      else this.messages.set([]);
+    });
+  }
+
+  // ── Mapping API → local ───────────────────────────────────────────────────
+
+  private toLocalMessage(m: ApiMessage): Message {
+    return {
+      id:        m.id,
+      role:      m.role === 'user' ? 'user' : 'ai',
+      text:      m.content,
+      timestamp: new Date(m.created_at),
+    };
+  }
+
+  // ── Chargement messages API ───────────────────────────────────────────────
+
+  private loadMessages(conversationId: string): void {
+    this.conversationService.getMessages(conversationId).subscribe({
+      next: (apiMsgs) => this.messages.set(apiMsgs.map((m) => this.toLocalMessage(m))),
+      error: (err)    => console.error('Erreur chargement messages', err),
+    });
+  }
+
+  // ── Callbacks sidebar ─────────────────────────────────────────────────────
+
+  onConversationsLoaded(list: ApiConversation[]): void {
+    this.apiConversations.set(list);
+  }
+
+  onSidebarCreate(): void {
+    this.selectedIndex.set(0);
+  }
+
+  onSidebarDelete(index: number): void {
+    const remaining = this.apiConversations().length - 1;
+    if (this.selectedIndex() >= remaining) {
+      this.selectedIndex.set(Math.max(0, remaining - 1));
+    }
+  }
+
+  // ── Actions utilisateur ───────────────────────────────────────────────────
+
+  selectConversation(index: number): void {
+    this.selectedIndex.set(index);
+  }
+
+  clearChat(): void {
+    const id = this.currentConversation().id;
+    if (id) this.loadMessages(id);
+  }
+
+  onMessageDeleted(index: number): void {
+    const msg = this.messages()[index];
+    const convId = this.currentConversation().id;
+    if (!msg?.id || !convId) return;
+
+    // Suppression optimiste
+    this.messages.update((msgs) => msgs.filter((_, i) => i !== index));
+
+    this.conversationService.deleteMessage(convId, msg.id).subscribe({
+      error: (err) => {
+        console.error('Erreur suppression message', err);
+        // Rollback
+        this.messages.update((msgs) => {
+          const restored = [...msgs];
+          restored.splice(index, 0, msg);
+          return restored;
+        });
+      },
+    });
+  }
+
+  onMessageEdited(event: { index: number; newText: string }): void {
+    const msg = this.messages()[event.index];
+    const convId = this.currentConversation().id;
+    if (!msg?.id || !convId) return;
+
+    // Mise à jour optimiste
+    this.messages.update((msgs) => {
+      const updated = [...msgs];
+      updated[event.index] = { ...updated[event.index], text: event.newText };
+      return updated;
+    });
+
+    this.conversationService.updateMessage(convId, msg.id, event.newText).subscribe({
+      error: (err) => {
+        console.error('Erreur modification message', err);
+        // Rollback
+        this.messages.update((msgs) => {
+          const updated = [...msgs];
+          updated[event.index] = { ...updated[event.index], text: msg.text };
+          return updated;
+        });
+      },
+    });
+  }
+
+  sendMessage(text: string): void {
+    const id = this.currentConversation().id;
+    if (!id || this.sending()) return;
+
+    this.sending.set(true);
+
+    // Affichage optimiste du message utilisateur
+    this.messages.update((msgs) => [
+      ...msgs,
+      { role: 'user', text, timestamp: new Date() },
+    ]);
+
+    this.conversationService.createMessage(id, text, 'user').subscribe({
+      next: () => {
+        this.sending.set(false);
+        this.loadMessages(id);
+      },
+      error: (err) => {
+        console.error('Erreur envoi message', err);
+        // Rollback de l'optimistic update
+        this.messages.update((msgs) => msgs.slice(0, -1));
+        this.sending.set(false);
+      },
+    });
   }
 }

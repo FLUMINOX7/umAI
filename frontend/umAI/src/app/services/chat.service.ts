@@ -1,161 +1,105 @@
-import { Injectable } from '@angular/core';
-import { signal } from '@angular/core';
-import { Conversation, Message } from '../interfaces/chat.interface';
-import { ConversationModel } from '../models/conversation.model';
+import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { signal, computed, Signal } from '@angular/core';
+import { Message } from '../interfaces/chat.interface';
 
-@Injectable({
-  providedIn: 'root'
-})
+/**
+ * ChatService — responsabilité unique : gérer l'historique LOCAL des messages,
+ * indexé par conversation ID (fourni par l'API).
+ *
+ * Le CRUD des conversations (create / list / delete) est délégué à
+ * ConversationService + SidebarComponent.
+ */
+@Injectable({ providedIn: 'root' })
 export class ChatService {
-  private conversations = signal<Conversation[]>([
-    new ConversationModel(
-      'Discussion générale',
-      [
-        {
-          role: 'ai',
-          text: 'Bonjour ! Je suis prêt à discuter avec vous. Posez-moi une question ou commencez une conversation.',
-          timestamp: new Date()
-        }
-      ]
-    )
-  ]);
 
-  private currentConversationIndex = signal(0);
+  /**
+   * Map  conversationId → Message[]
+   * Persistée dans localStorage pour survivre aux rechargements.
+   */
+  private messagesMap = signal<Record<string, Message[]>>(
+    this.loadFromStorage()
+  );
 
-  constructor() {
-    this.loadConversationsFromStorage();
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+
+  // ── Lecture ───────────────────────────────────────────────────────────────
+
+  /** Retourne les messages d'une conversation (tableau vide si inconnue) */
+  getMessagesForConversation(conversationId: string): Message[] {
+    return this.messagesMap()[conversationId] ?? [];
   }
 
-  get conversations$() {
-    return this.conversations;
+  /**
+   * Signal calculé exposant les messages de la conversation courante.
+   * À utiliser quand on veut réagir aux changements dans le template.
+   */
+  messagesSignal(conversationId: string): Signal<Message[]> {
+    return computed(() => this.messagesMap()[conversationId] ?? []);
   }
 
-  get currentConversationIndex$() {
-    return this.currentConversationIndex;
+  // ── Écriture ──────────────────────────────────────────────────────────────
+
+  /** Ajoute un message à une conversation */
+  addMessage(conversationId: string, message: Message): void {
+    this.messagesMap.update((map) => ({
+      ...map,
+      [conversationId]: [...(map[conversationId] ?? []), message],
+    }));
+    this.saveToStorage();
   }
 
-  getCurrentConversation(): Conversation {
-    const index = this.currentConversationIndex();
-    return this.conversations()[index] ?? this.conversations()[0];
+  /** Vide l'historique local d'une conversation */
+  clearConversation(conversationId: string): void {
+    this.messagesMap.update((map) => ({
+      ...map,
+      [conversationId]: [],
+    }));
+    this.saveToStorage();
   }
 
-  addMessage(message: Message): void {
-    const index = this.currentConversationIndex();
-    this.conversations.update((convs) => {
-      const updated = [...convs];
-      updated[index].messages.push(message);
-      updated[index].preview = message.text.substring(0, 50) + '...';
-      updated[index].updated = 'À l\'instant';
-      return updated;
+  /** Supprime complètement l'entrée (utile quand la conv est supprimée côté API) */
+  removeConversation(conversationId: string): void {
+    this.messagesMap.update((map) => {
+      const next = { ...map };
+      delete next[conversationId];
+      return next;
     });
-    this.saveConversationsToStorage();
+    this.saveToStorage();
   }
 
-  createConversation(): Conversation {
-    const newConversation = new ConversationModel(
-      `Conversation ${this.conversations().length + 1}`,
-      [
-        {
-          role: 'ai',
-          text: this.getInitialAIPrompt(),
-          timestamp: new Date()
-        }
-      ]
-    );
+  // ── Persistance localStorage ──────────────────────────────────────────────
 
-    let newLength = 0;
-    this.conversations.update((convs) => {
-      const updated = [...convs, newConversation];
-      newLength = updated.length;
-      return updated;
-    });
-    this.currentConversationIndex.set(newLength - 1);
-    this.saveConversationsToStorage();
-    return newConversation;
-  }
-
-  private getInitialAIPrompt(): string {
-    const hour = new Date().getHours();
-
-    if (hour >= 5 && hour < 12) {
-      return 'Bonjour ! Que souhaitez-vous cuisiner ce matin ?';
-    }
-    if (hour >= 12 && hour < 18) {
-      return 'Bon après-midi ! Que voulez-vous préparer aujourd’hui ?';
-    }
-    return 'Bonsoir ! Que souhaitez-vous cuisiner ce soir ?';
-  }
-
-  selectConversation(index: number): void {
-    if (index >= 0 && index < this.conversations().length) {
-      this.currentConversationIndex.set(index);
-    }
-  }
-
-  clearCurrentConversation(): void {
-    const index = this.currentConversationIndex();
-    this.conversations.update((convs) => {
-      const updated = [...convs];
-      updated[index].messages = [];
-      updated[index].preview = 'Conversation vide';
-      updated[index].updated = 'À l\'instant';
-      return updated;
-    });
-    this.saveConversationsToStorage();
-  }
-
-  deleteConversation(index: number): void {
-    if (this.conversations().length > 1) {
-      this.conversations.update((convs) => convs.filter((_, i) => i !== index));
-      if (this.currentConversationIndex() === index) {
-        this.currentConversationIndex.set(0);
-      }
-      this.saveConversationsToStorage();
-    }
-  }
-
-  private saveConversationsToStorage(): void {
-    if (!this.isBrowser()) {
-      return;
-    }
-
+  private saveToStorage(): void {
+    if (!isPlatformBrowser(this.platformId)) return;
     try {
-      const data = this.conversations().map((conv) => ({
-        ...conv,
-        createdAt: conv.createdAt?.toISOString()
-      }));
-      localStorage.setItem('conversations', JSON.stringify(data));
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des conversations:', error);
+      localStorage.setItem('chat_messages', JSON.stringify(this.messagesMap()));
+    } catch (e) {
+      console.error('ChatService: sauvegarde localStorage échouée', e);
     }
   }
 
-  private loadConversationsFromStorage(): void {
-    if (!this.isBrowser()) {
-      return;
+  private loadFromStorage(): Record<string, Message[]> {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return {};
     }
-
     try {
-      const stored = localStorage.getItem('conversations');
-      if (stored) {
-        const data = JSON.parse(stored);
-        const loaded = data.map((conv: any) =>
-          new ConversationModel(
-            conv.title,
-            conv.messages,
-            new Date(conv.createdAt || Date.now())
-          )
-        );
-        if (loaded.length > 0) {
-          this.conversations.set(loaded);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des conversations:', error);
+      const raw = localStorage.getItem('chat_messages');
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as Record<string, any[]>;
+      // Rehydrate les dates
+      return Object.fromEntries(
+        Object.entries(parsed).map(([id, msgs]) => [
+          id,
+          msgs.map((m) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : undefined,
+          })),
+        ])
+      );
+    } catch (e) {
+      console.error('ChatService: chargement localStorage échoué', e);
+      return {};
     }
-  }
-
-  private isBrowser(): boolean {
-    return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
   }
 }
