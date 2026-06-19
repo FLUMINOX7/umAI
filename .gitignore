@@ -40,7 +40,6 @@ Thumbs.db
 # RAG
 faiss_index/
 .cache/
-backend/cuisine_pdf/
 
 #pdfs
 docs/*.pdf
