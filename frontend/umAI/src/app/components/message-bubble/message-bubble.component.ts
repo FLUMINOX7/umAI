@@ -1,21 +1,25 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MarkdownComponent } from 'ngx-markdown';
 import { Message } from '../../interfaces/chat.interface';
 
 @Component({
   selector: 'app-message-bubble',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MarkdownComponent],
   template: `
     <div
       class="bubble-wrapper"
       [class.user]="message.role === 'user'"
+      [class.ai]="message.role === 'ai'"
       (mouseenter)="hovered = true"
       (mouseleave)="hovered = false"
     >
       <div class="bubble" [class.ai]="message.role === 'ai'" [class.user]="message.role === 'user'">
-        <ng-container *ngIf="!editing">{{ message.text }}</ng-container>
+        <ng-container *ngIf="!editing">
+          <markdown [data]="message.text" class="md-content"></markdown>
+        </ng-container>
         <ng-container *ngIf="editing">
           <textarea
             class="edit-area"
@@ -44,6 +48,10 @@ import { Message } from '../../interfaces/chat.interface';
       gap: 0.3rem;
     }
 
+    .bubble-wrapper.ai {
+      align-items: flex-start;
+    }
+
     .bubble-wrapper.user {
       align-items: flex-end;
     }
@@ -68,6 +76,42 @@ import { Message } from '../../interfaces/chat.interface';
       background: #dc2c24;
       color: #fff;
       border-top-right-radius: 0.5rem;
+    }
+
+    .md-content { display: block; }
+
+    .md-content :first-child { margin-top: 0; }
+    .md-content :last-child  { margin-bottom: 0; }
+
+    .md-content p  { margin: 0.4em 0; line-height: 1.5; }
+    .md-content ul,
+    .md-content ol { margin: 0.4em 0; padding-left: 1.4em; }
+    .md-content li { margin: 0.2em 0; }
+    .md-content code {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.88em;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    .bubble.user .md-content code  { background: rgba(255,255,255,0.2); }
+    .bubble.ai   .md-content code  { background: rgba(0,0,0,0.07); }
+
+    .md-content pre {
+      margin: 0.5em 0;
+      padding: 0.75em 1em;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-size: 0.85em;
+    }
+    .bubble.user .md-content pre { background: rgba(255,255,255,0.15); }
+    .bubble.ai   .md-content pre { background: rgba(0,0,0,0.06); }
+
+    .md-content pre code { background: none; padding: 0; }
+
+    .md-content h1, .md-content h2, .md-content h3 {
+      margin: 0.5em 0 0.25em;
+      font-size: 1em;
+      font-weight: 700;
     }
 
     .edit-area {
