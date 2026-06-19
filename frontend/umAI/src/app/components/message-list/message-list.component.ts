@@ -43,7 +43,7 @@ import { MessageBubbleComponent } from '../message-bubble/message-bubble.compone
     }
 
     .message.ai {
-      justify-content: flex-end;
+      justify-content: flex-start;
     }
 
     .message.user {

@@ -1,13 +1,14 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MarkdownComponent } from 'ngx-markdown';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { Message } from '../../interfaces/chat.interface';
 
 @Component({
   selector: 'app-message-bubble',
   standalone: true,
-  imports: [CommonModule, FormsModule, MarkdownComponent],
+  imports: [CommonModule, FormsModule],
   template: `
     <div
       class="bubble-wrapper"
@@ -18,7 +19,7 @@ import { Message } from '../../interfaces/chat.interface';
     >
       <div class="bubble" [class.ai]="message.role === 'ai'" [class.user]="message.role === 'user'">
         <ng-container *ngIf="!editing">
-          <markdown [data]="message.text" class="md-content"></markdown>
+          <div class="md-content" [innerHTML]="parsed"></div>
         </ng-container>
         <ng-container *ngIf="editing">
           <textarea
@@ -61,7 +62,6 @@ import { Message } from '../../interfaces/chat.interface';
       padding: 1rem 1.1rem;
       border-radius: 1.5rem;
       line-height: 1.5;
-      white-space: pre-wrap;
       word-break: break-word;
     }
 
@@ -78,8 +78,6 @@ import { Message } from '../../interfaces/chat.interface';
       border-top-right-radius: 0.5rem;
     }
 
-    .md-content { display: block; }
-
     .md-content :first-child { margin-top: 0; }
     .md-content :last-child  { margin-bottom: 0; }
 
@@ -87,14 +85,15 @@ import { Message } from '../../interfaces/chat.interface';
     .md-content ul,
     .md-content ol { margin: 0.4em 0; padding-left: 1.4em; }
     .md-content li { margin: 0.2em 0; }
+
     .md-content code {
       font-family: 'Fira Code', monospace;
       font-size: 0.88em;
       padding: 0.1em 0.35em;
       border-radius: 4px;
     }
-    .bubble.user .md-content code  { background: rgba(255,255,255,0.2); }
-    .bubble.ai   .md-content code  { background: rgba(0,0,0,0.07); }
+    .bubble.user .md-content code { background: rgba(255,255,255,0.2); }
+    .bubble.ai   .md-content code { background: rgba(0,0,0,0.07); }
 
     .md-content pre {
       margin: 0.5em 0;
@@ -190,22 +189,34 @@ import { Message } from '../../interfaces/chat.interface';
   `]
 })
 export class MessageBubbleComponent {
-  @Input() message!: Message;
-  @Output() edited = new EventEmitter<string>();
+  @Input() set message(msg: Message) {
+    this._message = msg;
+    this.parsed = this.sanitizer.bypassSecurityTrustHtml(
+      marked.parse(msg.text ?? '') as string
+    );
+  }
+  get message(): Message { return this._message; }
+
+  @Output() edited  = new EventEmitter<string>();
   @Output() deleted = new EventEmitter<void>();
+
+  private _message!: Message;
+  parsed!: SafeHtml;
+
+  private sanitizer = inject(DomSanitizer);
 
   hovered = false;
   editing = false;
   editText = '';
 
   startEdit(): void {
-    this.editText = this.message.text;
+    this.editText = this._message.text;
     this.editing = true;
   }
 
   confirmEdit(): void {
     const trimmed = this.editText.trim();
-    if (trimmed && trimmed !== this.message.text) {
+    if (trimmed && trimmed !== this._message.text) {
       this.edited.emit(trimmed);
     }
     this.editing = false;
