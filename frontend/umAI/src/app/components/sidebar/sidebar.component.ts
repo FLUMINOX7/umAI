@@ -1,6 +1,13 @@
 import {
-  Component, Input, Output, EventEmitter, OnInit,
-  Inject, PLATFORM_ID, ChangeDetectorRef,
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  Inject,
+  PLATFORM_ID,
+  ChangeDetectorRef,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { CommonModule } from '@angular/common';
@@ -11,11 +18,16 @@ import { RegisterModalComponent } from '../register-modal/register-modal.compone
 import { LoginModalComponent } from '../login-modal/login-modal.component';
 import { UserProfileModalComponent } from '../user-profile-modal/user-profile-modal.component';
 import { AuthService } from '../../services/auth.service';
+import {
+  ConversationService,
+  ApiConversation,
+} from '../../services/conversation.service';
 import { Conversation } from '../../interfaces/chat.interface';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ConversationCardComponent,
@@ -27,14 +39,19 @@ import { Conversation } from '../../interfaces/chat.interface';
   ],
   template: `
     <aside class="sidebar">
+      <!-- ── En-tête ── -->
       <div class="sidebar-header">
         <div>
           <div class="brand">umAI</div>
           <div class="brand-subtitle">Chat IA</div>
         </div>
+
         <div class="header-actions">
           <ng-container *ngIf="!currentUser; else userProfile">
-            <app-register-button [compact]="true" (register)="onRegister()"></app-register-button>
+            <app-register-button
+              [compact]="true"
+              (register)="onRegister()"
+            ></app-register-button>
             <button class="login-button" type="button" (click)="onToggleLogin()">
               Connexion
             </button>
@@ -42,40 +59,45 @@ import { Conversation } from '../../interfaces/chat.interface';
 
           <ng-template #userProfile>
             <div class="user-profile">
-              <!-- Nom cliquable → ouvre la modale profil -->
-              <button class="username-btn" type="button" (click)="onOpenProfile()"
-                      title="Modifier mon profil">
+              <button
+                class="username-btn"
+                type="button"
+                (click)="onOpenProfile()"
+                title="Modifier mon profil"
+              >
                 {{ currentUser.username }}
-                <svg class="edit-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="edit-icon" xmlns="http://www.w3.org/2000/svg"
+                     width="12" height="12" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                 </svg>
               </button>
-              <button class="logout-button" type="button" (click)="logout()">Déconnecter</button>
+              <button class="logout-button" type="button" (click)="logout()">
+                Déconnecter
+              </button>
             </div>
           </ng-template>
         </div>
       </div>
 
+      <!-- ── Santé API ── -->
       <app-health-status></app-health-status>
 
-      <!-- Modale d'inscription -->
+      <!-- ── Modales ── -->
       <app-register-modal
         *ngIf="showRegisterModal"
         (closeModal)="showRegisterModal = false"
         (registered)="onRegistered($event)"
       ></app-register-modal>
 
-      <!-- Modale de connexion -->
       <app-login-modal
         *ngIf="showLoginModal"
         (closeModal)="showLoginModal = false"
         (loggedIn)="onLoggedIn($event)"
       ></app-login-modal>
 
-      <!-- Modale de profil -->
       <app-user-profile-modal
         *ngIf="showProfileModal && currentUser"
         [user]="currentUser"
@@ -84,19 +106,53 @@ import { Conversation } from '../../interfaces/chat.interface';
         (accountDeleted)="onAccountDeleted()"
       ></app-user-profile-modal>
 
+      <!-- ── Liste des conversations ── -->
       <div class="sidebar-title">Conversations enregistrées</div>
-      <div class="conversation-list">
+
+      <!-- Chargement -->
+      <div *ngIf="loadingConversations" class="conversations-loading">
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+      </div>
+
+      <!-- Erreur -->
+      <div *ngIf="conversationsError && !loadingConversations" class="conversations-error">
+        <span>⚠ Impossible de charger les conversations</span>
+        <button class="retry-btn" type="button" (click)="loadConversations()">
+          Réessayer
+        </button>
+      </div>
+
+      <!-- Non connecté -->
+      <div *ngIf="!currentUser && !loadingConversations" class="conversations-empty">
+        <span>Connectez-vous pour retrouver vos conversations.</span>
+      </div>
+
+      <!-- Liste -->
+      <div
+        *ngIf="currentUser && !loadingConversations && !conversationsError"
+        class="conversation-list"
+      >
         <app-conversation-card
-          *ngFor="let conversation of conversations; let i = index"
-          [conversation]="conversation"
+          *ngFor="let conv of conversations; let i = index"
+          [conversation]="conv"
           [index]="i"
           [currentIndex]="currentIndex"
           (select)="onSelectConversation($event)"
           (delete)="onDeleteConversation($event)"
+          (rename)="onRenameConversation($event)"
         ></app-conversation-card>
       </div>
 
-      <button class="new-conversation" type="button" (click)="onCreateConversation()">
+      <!-- Bouton nouvelle conversation -->
+      <button
+        *ngIf="currentUser"
+        class="new-conversation"
+        type="button"
+        (click)="onCreateConversation()"
+        [disabled]="loadingConversations"
+      >
         + Nouvelle conversation
       </button>
     </aside>
@@ -154,6 +210,11 @@ import { Conversation } from '../../interfaces/chat.interface';
     .login-button:hover,
     .new-conversation:hover { opacity: 0.92; }
 
+    .new-conversation:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .sidebar-title {
       text-transform: uppercase;
       font-size: 0.8rem;
@@ -169,12 +230,74 @@ import { Conversation } from '../../interfaces/chat.interface';
       overflow: visible;
     }
 
-    .new-conversation {
-      margin-top: 0;
-      padding: 0.95rem 1rem;
+    /* ── Chargement ── */
+    .conversations-loading {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+      padding: 1rem 0;
     }
 
-    /* ── Zone utilisateur ── */
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff8a3d, #dc2c24);
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+      40%            { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── Erreur ── */
+    .conversations-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: rgba(220, 44, 36, 0.05);
+      border: 1px solid rgba(220, 44, 36, 0.15);
+      border-radius: 0.75rem;
+      font-size: 0.82rem;
+      color: #dc2c24;
+      text-align: center;
+    }
+
+    .retry-btn {
+      border: 1px solid #dc2c24;
+      background: transparent;
+      color: #dc2c24;
+      border-radius: 999px;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .retry-btn:hover {
+      background: #dc2c24;
+      color: #fff;
+    }
+
+    /* ── Vide ── */
+    .conversations-empty {
+      font-size: 0.82rem;
+      color: #9ca3af;
+      text-align: center;
+      padding: 0.5rem 0.25rem;
+      line-height: 1.5;
+    }
+
+    .new-conversation { margin-top: 0; padding: 0.95rem 1rem; }
+
+    /* ── Profil utilisateur ── */
     .user-profile {
       display: flex;
       flex-direction: column;
@@ -197,16 +320,9 @@ import { Conversation } from '../../interfaces/chat.interface';
       transition: background 0.15s ease, color 0.15s ease;
     }
 
-    .username-btn:hover {
-      background: #fff3ef;
-      color: #dc2c24;
-    }
+    .username-btn:hover { background: #fff3ef; color: #dc2c24; }
 
-    .edit-icon {
-      opacity: 0.5;
-      flex-shrink: 0;
-    }
-
+    .edit-icon { opacity: 0.5; flex-shrink: 0; }
     .username-btn:hover .edit-icon { opacity: 1; }
 
     .logout-button {
@@ -225,26 +341,30 @@ import { Conversation } from '../../interfaces/chat.interface';
   `],
 })
 export class SidebarComponent implements OnInit {
-  @Input() conversations: Conversation[] = [];
-  @Input() currentIndex  = 0;
-  @Input() isLoggedIn    = false;
+  @Input() currentIndex = 0;
 
-  showRegisterModal = false;
-  showLoginModal    = false;
-  showProfileModal  = false;
+  conversations: Conversation[]    = [];
+  apiConversations: ApiConversation[] = [];
 
-  currentUser: any = null;
-  loadingUser = false;
+  showRegisterModal    = false;
+  showLoginModal       = false;
+  showProfileModal     = false;
+  currentUser: any     = null;
+  loadingUser          = false;
+  loadingConversations = false;
+  conversationsError   = false;
 
-  @Output() toggleLogin        = new EventEmitter<void>();
-  @Output() register           = new EventEmitter<void>();
-  @Output() selectConversation = new EventEmitter<number>();
-  @Output() createConversation = new EventEmitter<void>();
-  @Output() deleteConversation = new EventEmitter<number>();
-  @Output() userChanged        = new EventEmitter<any>();
+  @Output() toggleLogin         = new EventEmitter<void>();
+  @Output() register            = new EventEmitter<void>();
+  @Output() selectConversation  = new EventEmitter<number>();
+  @Output() createConversation  = new EventEmitter<void>();
+  @Output() deleteConversation  = new EventEmitter<number>();
+  @Output() userChanged         = new EventEmitter<any>();
+  @Output() conversationsLoaded = new EventEmitter<ApiConversation[]>();
 
   constructor(
     private auth: AuthService,
+    private conversationSvc: ConversationService,
     @Inject(PLATFORM_ID) private platformId: Object,
     private cd: ChangeDetectorRef,
   ) {}
@@ -255,51 +375,97 @@ export class SidebarComponent implements OnInit {
     }
   }
 
+  // ── Utilisateur ───────────────────────────────────────────────────────────
+
   private loadUser() {
-    if (this.auth.isAuthenticated()) {
-      this.loadingUser = true;
-      this.auth.getMe().subscribe({
-        next: (response: any) => {
-          this.loadingUser = false;
-          this.currentUser = response.user;
-          this.cd.markForCheck();
-        },
-        error: (err) => {
-          this.loadingUser = false;
-          console.error('Failed to load user', err);
-          this.auth.clearToken();
-          this.currentUser = null;
-          this.cd.markForCheck();
-        },
-      });
-    }
+    if (!this.auth.isAuthenticated()) return;
+
+    this.loadingUser = true;
+    this.auth.getMe().subscribe({
+      next: (response: any) => {
+        this.loadingUser = false;
+        this.currentUser = response.user;
+        this.cd.markForCheck();
+        this.loadConversations();
+      },
+      error: (err) => {
+        this.loadingUser = false;
+        console.error('Failed to load user', err);
+        this.auth.clearToken();
+        this.currentUser = null;
+        this.cd.markForCheck();
+      },
+    });
   }
 
-  /* ── Profil ── */
+  // ── Conversations ─────────────────────────────────────────────────────────
 
-  onOpenProfile() {
-    this.showProfileModal = true;
+  loadConversations() {
+    if (!this.currentUser) return;
+
+    this.loadingConversations = true;
+    this.conversationsError   = false;
+    this.cd.markForCheck();
+
+    this.conversationSvc.loadOrCreate().subscribe({
+      next: (list) => {
+        this.apiConversations     = list;
+        this.conversations        = this.toInternal(list);
+        this.loadingConversations = false;
+        this.conversationsLoaded.emit(list);
+        this.cd.markForCheck();
+      },
+      error: (err) => {
+        console.error('Failed to load conversations', err);
+        this.loadingConversations = false;
+        this.conversationsError   = true;
+        this.cd.markForCheck();
+      },
+    });
   }
+
+  private toInternal(list: ApiConversation[]): Conversation[] {
+    return list.map((c) => ({
+      id:       c.id,
+      title:    c.title ?? 'Sans titre',
+      preview:  c.updated_at
+        ? new Date(c.updated_at).toLocaleDateString('fr-FR', {
+            day: '2-digit', month: 'short', year: 'numeric',
+          })
+        : '',
+      updated:  c.updated_at ?? c.created_at,
+      messages: [],
+      createdAt: c.created_at ? new Date(c.created_at) : undefined,
+    }));
+  }
+
+  // ── Profil ────────────────────────────────────────────────────────────────
+
+  onOpenProfile() { this.showProfileModal = true; }
 
   onUserUpdated(updatedUser: any) {
-    this.currentUser = { ...this.currentUser, ...updatedUser };
-    this.showProfileModal = false;
+    this.currentUser      = { ...this.currentUser, ...updatedUser };
+    this.showProfileModal  = false;
     this.userChanged.emit(this.currentUser);
     this.cd.markForCheck();
   }
 
   onAccountDeleted() {
-    this.currentUser = null;
-    this.showProfileModal = false;
+    this.currentUser      = null;
+    this.conversations    = [];
+    this.apiConversations = [];
+    this.showProfileModal  = false;
     this.userChanged.emit(null);
     this.cd.markForCheck();
   }
 
-  /* ── Auth ── */
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
   logout() {
     this.auth.clearToken();
-    this.currentUser = null;
+    this.currentUser      = null;
+    this.conversations    = [];
+    this.apiConversations = [];
     this.userChanged.emit(null);
     this.cd.markForCheck();
   }
@@ -310,6 +476,7 @@ export class SidebarComponent implements OnInit {
   }
 
   onLoggedIn(res: any) {
+    this.showLoginModal = false;
     this.loadUser();
     this.userChanged.emit(res);
   }
@@ -319,14 +486,71 @@ export class SidebarComponent implements OnInit {
     this.register.emit();
   }
 
-  onRegistered(event: any) {
-    console.log('User registered', event);
+  onRegistered(_event: any) {
+    this.showRegisterModal = false;
     this.loadUser();
   }
 
-  /* ── Conversations ── */
+  // ── Actions conversations ─────────────────────────────────────────────────
 
   onSelectConversation(index: number) { this.selectConversation.emit(index); }
-  onCreateConversation()              { this.createConversation.emit(); }
-  onDeleteConversation(index: number) { this.deleteConversation.emit(index); }
+
+  onCreateConversation() {
+    if (!this.currentUser) return;
+
+    this.conversationSvc.createConversation({ title: 'Nouvelle conversation' }).subscribe({
+      next: (created) => {
+        this.apiConversations = [created, ...this.apiConversations];
+        this.conversations    = this.toInternal(this.apiConversations);
+        this.selectConversation.emit(0);
+        this.conversationsLoaded.emit(this.apiConversations);
+        this.cd.markForCheck();
+      },
+      error: (err) => console.error('Failed to create conversation', err),
+    });
+
+    this.createConversation.emit();
+  }
+
+  onDeleteConversation(index: number) {
+    const target = this.apiConversations[index];
+    if (!target) return;
+
+    this.conversationSvc.deleteConversation(target.id).subscribe({
+      next: () => {
+        this.apiConversations = this.apiConversations.filter((_, i) => i !== index);
+        this.conversations    = this.toInternal(this.apiConversations);
+
+        if (this.apiConversations.length === 0) {
+          this.loadConversations();
+        } else {
+          this.conversationsLoaded.emit(this.apiConversations);
+        }
+
+        this.cd.markForCheck();
+      },
+      error: (err) => console.error('Failed to delete conversation', err),
+    });
+
+    this.deleteConversation.emit(index);
+  }
+
+  /** Renomme une conversation via PATCH /conversations/:id */
+  onRenameConversation(event: { index: number; newTitle: string }) {
+    const target = this.apiConversations[event.index];
+    if (!target) return;
+
+    this.conversationSvc.updateConversation(target.id, { title: event.newTitle }).subscribe({
+      next: (updated) => {
+        // Mise à jour locale immédiate sans rechargement complet
+        this.apiConversations = this.apiConversations.map((c, i) =>
+          i === event.index ? { ...c, title: updated.title ?? event.newTitle } : c
+        );
+        this.conversations = this.toInternal(this.apiConversations);
+        this.conversationsLoaded.emit(this.apiConversations);
+        this.cd.markForCheck();
+      },
+      error: (err) => console.error('Failed to rename conversation', err),
+    });
+  }
 }

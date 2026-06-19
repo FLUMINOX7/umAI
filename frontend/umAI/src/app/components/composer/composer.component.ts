@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
       <button
         class="send-button"
         type="submit"
-        [disabled]="!message.trim()"
+        [disabled]="!message.trim() || sending"
         aria-label="Envoyer"
       >
         &#8593;
@@ -75,6 +75,7 @@ import { FormsModule } from '@angular/forms';
   `]
 })
 export class ComposerComponent {
+  @Input() sending = false;
   message = '';
 
   @Output() messageSent = new EventEmitter<string>();
