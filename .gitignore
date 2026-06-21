@@ -36,3 +36,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# RAG
+faiss_index/
+.cache/
+
+#pdfs
+docs/*.pdf
