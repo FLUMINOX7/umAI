@@ -22,6 +22,16 @@ export interface ApiMessage {
   created_at: string;
 }
 
+export interface ApiSession {
+  session: ApiConversation;
+  messages: ApiMessage[];
+}
+
+export interface ChatResponse {
+  reply: ApiMessage;
+  user_message: ApiMessage;
+}
+
 export interface CreateConversationPayload {
   title?: string;
   metadata?: Record<string, unknown>;
@@ -29,7 +39,8 @@ export interface CreateConversationPayload {
 
 @Injectable({ providedIn: 'root' })
 export class ConversationService {
-  private readonly base = '/api/conversations';
+  private readonly llmBase  = '/api/llm/sessions';
+  private readonly convBase = '/api/conversations';
 
   constructor(private http: HttpClient) {}
 
@@ -41,50 +52,48 @@ export class ConversationService {
     });
   }
 
-  // ── Helpers de normalisation ──────────────────────────────────────────────
+  // ── Normalisation ─────────────────────────────────────────────────────────
 
-  /**
-   * L'API peut renvoyer soit l'objet directement, soit un wrapper.
-   * On normalise dans tous les cas.
-   */
   private unwrapOne(res: any): ApiConversation {
     if (res?.conversation?.id) return res.conversation;
+    if (res?.session?.id)      return res.session;
     if (res?.id)               return res as ApiConversation;
     console.error('ConversationService: réponse inattendue', res);
     return res;
   }
 
   private unwrapList(res: any): ApiConversation[] {
-    if (Array.isArray(res))              return res;
+    if (Array.isArray(res))                return res;
+    if (Array.isArray(res?.sessions))      return res.sessions;
     if (Array.isArray(res?.conversations)) return res.conversations;
     return [];
   }
 
-  // ── API calls ─────────────────────────────────────────────────────────────
+  // ── Sessions LLM — remplacent GET/POST/DELETE /conversations ─────────────
 
   getConversations(): Observable<ApiConversation[]> {
     return this.http
-      .get<any>(this.base, { headers: this.headers })
+      .get<any>(this.llmBase, { headers: this.headers })
       .pipe(map((res) => this.unwrapList(res)));
   }
 
   createConversation(payload: CreateConversationPayload = {}): Observable<ApiConversation> {
     return this.http
-      .post<any>(this.base, payload, { headers: this.headers })
+      .post<any>(this.llmBase, {}, { headers: this.headers })
       .pipe(
         map((res) => this.unwrapOne(res)),
-        tap((conv) => {
-          if (!conv?.id) {
-            console.error('createConversation: id manquant dans la réponse API', conv);
+        switchMap((session) => {
+          if (payload.title && session?.id) {
+            return this.updateConversation(session.id, { title: payload.title });
           }
+          return of(session);
+        }),
+        tap((conv) => {
+          if (!conv?.id) console.error('createConversation: id manquant', conv);
         })
       );
   }
 
-  /**
-   * Charge les conversations ; si aucune n'existe, en crée une par défaut
-   * et retourne le tableau résultant.
-   */
   loadOrCreate(): Observable<ApiConversation[]> {
     return this.getConversations().pipe(
       switchMap((list) => {
@@ -97,31 +106,54 @@ export class ConversationService {
   }
 
   deleteConversation(id: string): Observable<unknown> {
-    return this.http.delete(`${this.base}/${id}`, { headers: this.headers });
+    return this.http.delete(`${this.llmBase}/${id}`, { headers: this.headers });
   }
+
+  // ── Conversation — unique (PATCH /conversations/{id}) ────────────────────
 
   updateConversation(
     id: string,
     payload: Partial<CreateConversationPayload>
   ): Observable<ApiConversation> {
     return this.http
-      .patch<any>(`${this.base}/${id}`, payload, { headers: this.headers })
+      .patch<any>(`${this.convBase}/${id}`, payload, { headers: this.headers })
       .pipe(map((res) => this.unwrapOne(res)));
   }
 
-  // ── Messages ──────────────────────────────────────────────────────────────
+  // ── Session LLM — remplace GET /conversations/{id}/messages ──────────────
 
-  getMessages(conversationId: string): Observable<ApiMessage[]> {
+  getSession(sessionId: string): Observable<ApiSession> {
     return this.http
-      .get<any>(`${this.base}/${conversationId}/messages`, { headers: this.headers })
-      .pipe(map((res) => (Array.isArray(res) ? res : (res?.messages ?? []))));
+      .get<any>(`${this.llmBase}/${sessionId}`, { headers: this.headers })
+      .pipe(
+        map((res) => {
+          const session  = res?.session ?? res?.conversation ?? res;
+          const messages = Array.isArray(res?.messages) ? res.messages
+                         : Array.isArray(res?.history)  ? res.history
+                         : [];
+          return { session, messages } as ApiSession;
+        })
+      );
   }
 
-  createMessage(conversationId: string, content: string, role: 'user' | 'assistant' = 'user'): Observable<ApiMessage> {
+  // ── Chat LLM — remplace POST /conversations/{id}/messages ────────────────
+
+  sendChat(sessionId: string, content: string, retrievalMode: 'web' | 'rag' = 'rag'): Observable<ChatResponse> {
     return this.http
-      .post<any>(
-        `${this.base}/${conversationId}/messages`,
-        { content, role },
+      .post<ChatResponse>(
+        `${this.llmBase}/${sessionId}/chat`,
+        { content, retrieval_mode: retrievalMode },
+        { headers: this.headers }
+      );
+  }
+
+  // ── Messages — uniques (PATCH / DELETE /conversations/{id}/messages/{msg}) ─
+
+  updateMessage(conversationId: string, messageId: string, content: string): Observable<ApiMessage> {
+    return this.http
+      .patch<any>(
+        `${this.convBase}/${conversationId}/messages/${messageId}`,
+        { content },
         { headers: this.headers }
       )
       .pipe(map((res) => (res?.message ?? res) as ApiMessage));
@@ -129,18 +161,8 @@ export class ConversationService {
 
   deleteMessage(conversationId: string, messageId: string): Observable<unknown> {
     return this.http.delete(
-      `${this.base}/${conversationId}/messages/${messageId}`,
+      `${this.convBase}/${conversationId}/messages/${messageId}`,
       { headers: this.headers }
     );
-  }
-
-  updateMessage(conversationId: string, messageId: string, content: string): Observable<ApiMessage> {
-    return this.http
-      .patch<any>(
-        `${this.base}/${conversationId}/messages/${messageId}`,
-        { content },
-        { headers: this.headers }
-      )
-      .pipe(map((res) => (res?.message ?? res) as ApiMessage));
   }
 }

@@ -1,7 +1,8 @@
 import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatService } from '../../services/chat.service';
-import { ConversationService, ApiConversation, ApiMessage } from '../../services/conversation.service';
+import { ConversationService, ApiConversation, ApiMessage, ChatResponse } from '../../services/conversation.service';
+import { RetrievalMode } from '../../components/chat-header/chat-header.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatHeaderComponent } from '../../components/chat-header/chat-header.component';
 import { MessageListComponent } from '../../components/message-list/message-list.component';
@@ -33,6 +34,8 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
         <app-chat-header
           [title]="currentConversation().title"
           [updated]="currentConversation().updated"
+          [retrievalMode]="retrievalMode()"
+          (retrievalModeChange)="retrievalMode.set($event)"
           (clear)="clearChat()"
         ></app-chat-header>
 
@@ -96,6 +99,7 @@ export class ChatPageComponent {
   selectedIndex = signal(0);
   messages = signal<Message[]>([]);
   sending = signal(false);
+  retrievalMode = signal<RetrievalMode>('rag');
 
   // ── Conversation courante (computed) ──────────────────────────────────────
 
@@ -148,9 +152,9 @@ export class ChatPageComponent {
   // ── Chargement messages API ───────────────────────────────────────────────
 
   private loadMessages(conversationId: string): void {
-    this.conversationService.getMessages(conversationId).subscribe({
-      next: (apiMsgs) => this.messages.set(apiMsgs.map((m) => this.toLocalMessage(m))),
-      error: (err)    => console.error('Erreur chargement messages', err),
+    this.conversationService.getSession(conversationId).subscribe({
+      next: ({ messages }) => this.messages.set(messages.map((m) => this.toLocalMessage(m))),
+      error: (err)          => console.error('Erreur chargement messages', err),
     });
   }
 
@@ -240,14 +244,18 @@ export class ChatPageComponent {
       { role: 'user', text, timestamp: new Date() },
     ]);
 
-    this.conversationService.createMessage(id, text, 'user').subscribe({
-      next: () => {
+    this.conversationService.sendChat(id, text, this.retrievalMode()).subscribe({
+      next: (res: ChatResponse) => {
+        // Remplace le message optimiste par le vrai user_message + ajoute la réponse IA
+        this.messages.update((msgs) => [
+          ...msgs.slice(0, -1),
+          this.toLocalMessage(res.user_message),
+          this.toLocalMessage(res.reply),
+        ]);
         this.sending.set(false);
-        this.loadMessages(id);
       },
       error: (err) => {
         console.error('Erreur envoi message', err);
-        // Rollback de l'optimistic update
         this.messages.update((msgs) => msgs.slice(0, -1));
         this.sending.set(false);
       },
