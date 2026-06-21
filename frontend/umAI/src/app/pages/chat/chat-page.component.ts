@@ -2,6 +2,7 @@ import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatService } from '../../services/chat.service';
 import { ConversationService, ApiConversation, ApiMessage, ChatResponse } from '../../services/conversation.service';
+import { RetrievalMode } from '../../components/chat-header/chat-header.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatHeaderComponent } from '../../components/chat-header/chat-header.component';
 import { MessageListComponent } from '../../components/message-list/message-list.component';
@@ -33,6 +34,8 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
         <app-chat-header
           [title]="currentConversation().title"
           [updated]="currentConversation().updated"
+          [retrievalMode]="retrievalMode()"
+          (retrievalModeChange)="retrievalMode.set($event)"
           (clear)="clearChat()"
         ></app-chat-header>
 
@@ -96,6 +99,7 @@ export class ChatPageComponent {
   selectedIndex = signal(0);
   messages = signal<Message[]>([]);
   sending = signal(false);
+  retrievalMode = signal<RetrievalMode>('rag');
 
   // ── Conversation courante (computed) ──────────────────────────────────────
 
@@ -240,7 +244,7 @@ export class ChatPageComponent {
       { role: 'user', text, timestamp: new Date() },
     ]);
 
-    this.conversationService.sendChat(id, text).subscribe({
+    this.conversationService.sendChat(id, text, this.retrievalMode()).subscribe({
       next: (res: ChatResponse) => {
         // Remplace le message optimiste par le vrai user_message + ajoute la réponse IA
         this.messages.update((msgs) => [

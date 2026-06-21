@@ -138,11 +138,11 @@ export class ConversationService {
 
   // ── Chat LLM — remplace POST /conversations/{id}/messages ────────────────
 
-  sendChat(sessionId: string, content: string): Observable<ChatResponse> {
+  sendChat(sessionId: string, content: string, retrievalMode: 'web' | 'rag' = 'rag'): Observable<ChatResponse> {
     return this.http
       .post<ChatResponse>(
         `${this.llmBase}/${sessionId}/chat`,
-        { content },
+        { content, retrieval_mode: retrievalMode },
         { headers: this.headers }
       );
   }
