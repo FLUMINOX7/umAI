@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-export type RetrievalMode = 'web' | 'rag';
+export type RetrievalMode = 'none' | 'web' | 'rag';
 
 @Component({
   selector: 'app-chat-header',
@@ -20,21 +20,30 @@ export type RetrievalMode = 'web' | 'rag';
         <div class="retrieval-toggle">
           <button
             class="toggle-btn"
-            [class.active]="retrievalMode === 'web'"
+            [class.active]="retrievalMode === 'none'"
             type="button"
-            title="Recherche web (DuckDuckGo)"
-            (click)="setMode('web')"
+            title="LLM seul (sans recherche)"
+            (click)="setMode('none')"
           >
-            🌐 Web
+            🧠 LLM
           </button>
           <button
             class="toggle-btn"
             [class.active]="retrievalMode === 'rag'"
             type="button"
-            title="Contexte PDF"
+            title="Recherche dans les PDFs cuisine"
             (click)="setMode('rag')"
           >
             📄 PDF
+          </button>
+          <button
+            class="toggle-btn"
+            [class.active]="retrievalMode === 'web'"
+            type="button"
+            title="Recherche internet (DuckDuckGo)"
+            (click)="setMode('web')"
+          >
+            🌐 Web
           </button>
         </div>
 
