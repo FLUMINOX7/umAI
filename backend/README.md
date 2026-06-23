@@ -8,6 +8,66 @@ Ce guide explique comment lancer le backend rapidement, quoi créer manuellement
 - PostgreSQL 15+
 - Une clé OpenRouter si tu veux utiliser le mode LLM ou le mode recherche web
 
+> Si tu utilises Docker (section ci-dessous), seul Docker est requis. Python et le venv ne sont pas nécessaires sur la machine hôte, mais il te faut toujours une base PostgreSQL accessible.
+
+## Lancer Avec Docker
+
+Le backend est conteneurisé via `backend/Dockerfile` (image multi-stage Python 3.12, servie par Gunicorn). C'est la méthode recommandée pour déployer ou pour éviter d'installer Python et les dépendances localement.
+
+Deux options : `docker compose` (backend + PostgreSQL ensemble, **recommandé**) ou un conteneur backend seul.
+
+### Option A — Docker Compose (backend + PostgreSQL)
+
+`backend/docker-compose.yml` lance le backend **et** une base PostgreSQL conteneurisée. Tu n'as donc pas besoin d'installer ni de créer PostgreSQL à la main : le schéma `database/schema.sql` est appliqué automatiquement au premier démarrage.
+
+1. Crée le `.env` (voir « Créer Le Fichier `.env` » plus bas). Les variables `POSTGRES_USER`, `POSTGRES_PASSWORD` et `POSTGRES_DB` servent à la fois au backend **et** à initialiser le conteneur PostgreSQL. Laisse `POSTGRES_HOST` tel quel : compose le surcharge automatiquement vers le service `db`.
+
+2. Depuis le dossier `backend/` :
+
+```bash
+docker compose up --build
+```
+
+3. Le backend est disponible sur `http://localhost:5000`. La base persiste dans le volume `umai_pgdata`, l'index FAISS et le cache des modèles dans `umai_instance`.
+
+Pour arrêter :
+
+```bash
+docker compose down          # garde les volumes (données conservées)
+docker compose down -v       # supprime aussi les volumes (repart de zéro)
+```
+
+> Le schéma SQL n'est appliqué qu'à la **première** création du volume `umai_pgdata`. Si tu modifies `schema.sql` ensuite, fais un `docker compose down -v` pour réinitialiser, ou applique le changement à la main.
+
+### Option B — Conteneur backend seul
+
+Si tu as déjà une base PostgreSQL ailleurs (hôte, service managé...), construis et lance uniquement le backend :
+
+```bash
+docker build -t umai-backend .
+
+docker run -p 5000:5000 \
+  --env-file .env \
+  -v umai_instance:/app/instance \
+  -v "$(pwd)/cuisine_pdf:/app/cuisine_pdf" \
+  --add-host=host.docker.internal:host-gateway \
+  umai-backend
+```
+
+- `--env-file .env` : injecte la configuration. Le `.env` n'est jamais copié dans l'image (exclu via `.dockerignore`).
+- Pour joindre un PostgreSQL qui tourne sur la machine hôte, mets `POSTGRES_HOST=host.docker.internal` dans le `.env` (l'option `--add-host` rend ce nom résolvable ; à omettre si Postgres est ailleurs).
+- `-v umai_instance:/app/instance` : volume persistant pour l'index FAISS et le cache des modèles d'embeddings.
+- `-v ...cuisine_pdf...` : fournit le corpus PDF au conteneur (non inclus dans l'image).
+
+Avec cette option, la base et son schéma (`database/schema.sql`) restent à créer manuellement.
+
+### Notes communes
+
+- L'image embarque toute la stack ML (PyTorch, FAISS, sentence-transformers) : le build peut être long et l'image fait plusieurs Go. C'est normal.
+- Le backend expose un `HEALTHCHECK` sur `/openapi.json` ; `docker ps` affiche `healthy` une fois prêt.
+- Après avoir ajouté les PDFs cuisine, déclenche l'ingestion via `POST /api/rag/ingest`.
+- Pour le développement avec rechargement à chaud, garde l'installation locale (sections ci-dessous) ; le conteneur vise un usage de type production via Gunicorn.
+
 ## 2. Installer Le Backend
 
 Depuis le dossier `backend/` :
