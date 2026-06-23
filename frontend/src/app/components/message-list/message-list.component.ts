@@ -32,7 +32,6 @@ import { MessageBubbleComponent } from '../message-bubble/message-bubble.compone
             type="button"
             (click)="suggestionPicked.emit(s.prompt)"
           >
-            <span class="suggestion-emoji">{{ s.emoji }}</span>
             <span class="suggestion-label">{{ s.label }}</span>
           </button>
         </div>
@@ -142,9 +141,10 @@ import { MessageBubbleComponent } from '../message-bubble/message-bubble.compone
     .suggestion {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 0.75rem;
       padding: 0.95rem 1.1rem;
-      text-align: left;
+      text-align: center;
       background: var(--surface);
       border: 1px solid var(--border-strong);
       border-radius: var(--r-md);
@@ -230,10 +230,10 @@ export class MessageListComponent implements AfterViewChecked {
   @ViewChild('scroll') private scrollRef?: ElementRef<HTMLElement>;
 
   suggestions = [
-    { emoji: '💡', label: 'Explique-moi cette recette', prompt: 'Explique-moi simplement la recette de...' },
-    { emoji: '📝', label: 'idée de repas',          prompt: 'Donne moi une idée de repas facile a faire' },
-    { emoji: '🧩', label: 'dessert facile',          prompt: 'Donne moi une idée de dessert facile a faire' },
-    { emoji: '🌐', label: 'cuisine indienne',        prompt: 'Donne moi une idée de plat indien' },
+    { label: 'Explique-moi cette recette', prompt: 'Explique-moi simplement la recette de...' },
+    { label: 'idée de repas',          prompt: 'Donne moi une idée de repas facile a faire' },
+    { label: 'dessert facile',          prompt: 'Donne moi une idée de dessert facile a faire' },
+    { label: 'cuisine indienne',        prompt: 'Donne moi une idée de plat indien' },
   ];
 
   private lastCount = -1;
