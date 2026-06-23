@@ -24,15 +24,15 @@ import { CommonModule } from '@angular/common';
         display: grid;
         gap: 0.75rem;
         padding: 1rem;
-        border-radius: 1rem;
-        background: #fff7ed;
-        border: 1px solid #ffe3c7;
+        border-radius: var(--r-md);
+        background: var(--gradient-warm-soft);
+        border: 1px solid var(--border-strong);
       }
 
       .register-panel__title {
         font-size: 0.82rem;
         font-weight: 700;
-        color: #c2410c;
+        color: var(--orange-deep);
         text-transform: uppercase;
         letter-spacing: 0.12em;
       }
@@ -40,30 +40,35 @@ import { CommonModule } from '@angular/common';
       .register-panel__button {
         width: 100%;
         border: none;
-        border-radius: 999px;
+        border-radius: var(--r-pill);
         padding: 0.9rem 1rem;
         font-weight: 700;
         color: #ffffff;
-        background: linear-gradient(135deg, #ff8a3d 0%, #dc2c24 100%);
+        background: var(--gradient-warm);
         cursor: pointer;
-        transition: transform 0.2s ease, opacity 0.2s ease;
+        box-shadow: var(--shadow-glow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
       .register-panel__button:hover {
-        opacity: 0.95;
         transform: translateY(-1px);
+        box-shadow: var(--shadow-lg);
       }
 
       .register-button--compact {
+        width: 100%;
         border: none;
-        border-radius: 999px;
-        padding: 0.6rem 0.9rem;
+        border-radius: var(--r-pill);
+        padding: 0.55rem 0.9rem;
+        font-size: 0.83rem;
         font-weight: 700;
         color: #ffffff;
-        background: linear-gradient(135deg, #ff8a3d 0%, #dc2c24 100%);
+        background: var(--gradient-warm);
         cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
-      .register-button--compact:hover { opacity: 0.95; transform: translateY(-1px); }
+      .register-button--compact:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
     `
   ]
 })

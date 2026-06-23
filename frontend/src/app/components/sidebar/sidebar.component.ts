@@ -41,49 +41,43 @@ import { Conversation } from '../../interfaces/chat.interface';
     <aside class="sidebar">
       <!-- ── En-tête ── -->
       <div class="sidebar-header">
-        <div>
-          <div class="brand">umAI</div>
-          <div class="brand-subtitle">Chat IA</div>
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">✦</div>
+          <div>
+            <div class="brand-name">umAI</div>
+            <div class="brand-subtitle">Assistant IA</div>
+          </div>
         </div>
 
-        <div class="header-actions">
-          <ng-container *ngIf="!currentUser; else userProfile">
-            <app-register-button
-              [compact]="true"
-              (register)="onRegister()"
-            ></app-register-button>
-            <button class="login-button" type="button" (click)="onToggleLogin()">
-              Connexion
-            </button>
-          </ng-container>
-
-          <ng-template #userProfile>
-            <div class="user-profile">
-              <button
-                class="username-btn"
-                type="button"
-                (click)="onOpenProfile()"
-                title="Modifier mon profil"
-              >
-                {{ currentUser.username }}
-                <svg class="edit-icon" xmlns="http://www.w3.org/2000/svg"
-                     width="12" height="12" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5"
-                     stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </button>
-              <button class="logout-button" type="button" (click)="logout()">
-                Déconnecter
-              </button>
-            </div>
-          </ng-template>
-        </div>
+        <button
+          *ngIf="currentUser"
+          class="username-btn"
+          type="button"
+          (click)="onOpenProfile()"
+          title="Modifier mon profil"
+        >
+          <span class="user-avatar">{{ userInitial }}</span>
+          <span class="username-text">{{ currentUser.username }}</span>
+          <svg class="edit-icon" xmlns="http://www.w3.org/2000/svg"
+               width="12" height="12" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
       </div>
 
-      <!-- ── Santé API ── -->
-      <app-health-status></app-health-status>
+      <!-- ── Authentification (non connecté) ── -->
+      <div class="auth-actions" *ngIf="!currentUser">
+        <app-register-button
+          [compact]="true"
+          (register)="onRegister()"
+        ></app-register-button>
+        <button class="login-button" type="button" (click)="onToggleLogin()">
+          Connexion
+        </button>
+      </div>
 
       <!-- ── Modales ── -->
       <app-register-modal
@@ -106,45 +100,6 @@ import { Conversation } from '../../interfaces/chat.interface';
         (accountDeleted)="onAccountDeleted()"
       ></app-user-profile-modal>
 
-      <!-- ── Liste des conversations ── -->
-      <div class="sidebar-title">Conversations enregistrées</div>
-
-      <!-- Chargement -->
-      <div *ngIf="loadingConversations" class="conversations-loading">
-        <span class="loading-dot"></span>
-        <span class="loading-dot"></span>
-        <span class="loading-dot"></span>
-      </div>
-
-      <!-- Erreur -->
-      <div *ngIf="conversationsError && !loadingConversations" class="conversations-error">
-        <span>⚠ Impossible de charger les conversations</span>
-        <button class="retry-btn" type="button" (click)="loadConversations()">
-          Réessayer
-        </button>
-      </div>
-
-      <!-- Non connecté -->
-      <div *ngIf="!currentUser && !loadingConversations" class="conversations-empty">
-        <span>Connectez-vous pour retrouver vos conversations.</span>
-      </div>
-
-      <!-- Liste -->
-      <div
-        *ngIf="currentUser && !loadingConversations && !conversationsError"
-        class="conversation-list"
-      >
-        <app-conversation-card
-          *ngFor="let conv of conversations; let i = index"
-          [conversation]="conv"
-          [index]="i"
-          [currentIndex]="currentIndex"
-          (select)="onSelectConversation($event)"
-          (delete)="onDeleteConversation($event)"
-          (rename)="onRenameConversation($event)"
-        ></app-conversation-card>
-      </div>
-
       <!-- Bouton nouvelle conversation -->
       <button
         *ngIf="currentUser"
@@ -153,81 +108,205 @@ import { Conversation } from '../../interfaces/chat.interface';
         (click)="onCreateConversation()"
         [disabled]="loadingConversations"
       >
-        + Nouvelle conversation
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14"/><path d="M5 12h14"/>
+        </svg>
+        Nouvelle conversation
       </button>
+
+      <!-- ── Liste des conversations ── -->
+      <div class="sidebar-title">Conversations</div>
+
+      <div class="conversation-scroll">
+        <!-- Chargement -->
+        <div *ngIf="loadingConversations" class="conversations-loading">
+          <span class="loading-dot"></span>
+          <span class="loading-dot"></span>
+          <span class="loading-dot"></span>
+        </div>
+
+        <!-- Erreur -->
+        <div *ngIf="conversationsError && !loadingConversations" class="conversations-error">
+          <span>⚠ Impossible de charger les conversations</span>
+          <button class="retry-btn" type="button" (click)="loadConversations()">
+            Réessayer
+          </button>
+        </div>
+
+        <!-- Non connecté -->
+        <div *ngIf="!currentUser && !loadingConversations" class="conversations-empty">
+          <span>Connectez-vous pour retrouver vos conversations.</span>
+        </div>
+
+        <!-- Liste -->
+        <div
+          *ngIf="currentUser && !loadingConversations && !conversationsError"
+          class="conversation-list"
+        >
+          <app-conversation-card
+            *ngFor="let conv of conversations; let i = index"
+            [conversation]="conv"
+            [index]="i"
+            [currentIndex]="currentIndex"
+            (select)="onSelectConversation($event)"
+            (delete)="onDeleteConversation($event)"
+            (rename)="onRenameConversation($event)"
+          ></app-conversation-card>
+        </div>
+      </div>
+
+      <!-- ── Pied : santé API + déconnexion ── -->
+      <div class="sidebar-footer">
+        <app-health-status></app-health-status>
+        <button
+          *ngIf="currentUser"
+          class="logout-button"
+          type="button"
+          (click)="logout()"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>
+          </svg>
+          Déconnexion
+        </button>
+      </div>
     </aside>
   `,
   styles: [`
     .sidebar {
-      background: #ffffff;
-      border: 1px solid #ece9e6;
-      border-radius: 1.5rem;
+      height: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
       padding: 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      align-self: flex-start;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.05);
+      box-shadow: var(--shadow-lg);
+      min-height: 0;
     }
 
     .sidebar-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 1rem;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
     }
 
     .brand {
-      font-size: 1.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--gradient-warm);
+      color: #fff;
+      font-size: 1.15rem;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .brand-name {
+      font-size: 1.3rem;
       font-weight: 800;
-      color: #dc2c24;
+      letter-spacing: -0.01em;
+      background: var(--gradient-warm);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.1;
     }
 
     .brand-subtitle {
-      color: #6b7280;
-      font-size: 0.9rem;
-      margin-top: 0.25rem;
+      color: var(--text-muted);
+      font-size: 0.78rem;
     }
 
-    .login-button,
-    .new-conversation {
-      border: none;
-      border-radius: 999px;
-      font-weight: 700;
+    .auth-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .auth-actions app-register-button,
+    .auth-actions .login-button {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .login-button, .logout-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-pill);
+      font-weight: 600;
+      font-size: 0.83rem;
       cursor: pointer;
-      transition: opacity 0.2s ease;
-      padding: 0.6rem 0.9rem;
-      background: linear-gradient(135deg, #ff8a3d 0%, #dc2c24 100%);
+      padding: 0.5rem 0.85rem;
+      background: var(--surface);
+      color: var(--text-soft);
+      transition: color var(--ease), border-color var(--ease), background var(--ease);
+    }
+
+    .login-button:hover, .logout-button:hover {
+      color: var(--red); border-color: var(--red); background: var(--danger-bg);
+    }
+
+    .new-conversation {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border: none;
+      border-radius: var(--r-md);
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: transform var(--ease), box-shadow var(--ease), opacity var(--ease);
+      padding: 0.85rem 1rem;
+      background: var(--gradient-warm);
       color: #fff;
+      box-shadow: var(--shadow-glow);
     }
 
-    .login-button:hover,
-    .new-conversation:hover { opacity: 0.92; }
-
-    .new-conversation:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    .new-conversation:hover:not(:disabled) { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+    .new-conversation:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
     .sidebar-title {
       text-transform: uppercase;
-      font-size: 0.8rem;
-      letter-spacing: 0.16em;
-      color: #9ca3af;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    /* ── Zone défilante ── */
+    .conversation-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      margin: 0 -0.35rem;
+      padding: 0 0.35rem;
     }
 
     .conversation-list {
       display: flex;
       flex-direction: column;
-      gap: 0.85rem;
-      padding-right: 0.25rem;
-      overflow: visible;
+      gap: 0.4rem;
     }
 
     /* ── Chargement ── */
@@ -235,14 +314,14 @@ import { Conversation } from '../../interfaces/chat.interface';
       display: flex;
       gap: 0.4rem;
       justify-content: center;
-      padding: 1rem 0;
+      padding: 1.5rem 0;
     }
 
     .loading-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #ff8a3d, #dc2c24);
+      background: var(--gradient-warm);
       animation: bounce 1.2s infinite ease-in-out;
     }
 
@@ -261,19 +340,19 @@ import { Conversation } from '../../interfaces/chat.interface';
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem;
-      background: rgba(220, 44, 36, 0.05);
-      border: 1px solid rgba(220, 44, 36, 0.15);
-      border-radius: 0.75rem;
+      background: var(--danger-bg);
+      border: 1px solid rgba(229, 57, 47, 0.15);
+      border-radius: var(--r-sm);
       font-size: 0.82rem;
-      color: #dc2c24;
+      color: var(--red);
       text-align: center;
     }
 
     .retry-btn {
-      border: 1px solid #dc2c24;
+      border: 1px solid var(--red);
       background: transparent;
-      color: #dc2c24;
-      border-radius: 999px;
+      color: var(--red);
+      border-radius: var(--r-pill);
       padding: 0.3rem 0.8rem;
       font-size: 0.78rem;
       font-weight: 700;
@@ -281,63 +360,67 @@ import { Conversation } from '../../interfaces/chat.interface';
       transition: background 0.15s ease, color 0.15s ease;
     }
 
-    .retry-btn:hover {
-      background: #dc2c24;
-      color: #fff;
-    }
+    .retry-btn:hover { background: var(--red); color: #fff; }
 
     /* ── Vide ── */
     .conversations-empty {
-      font-size: 0.82rem;
-      color: #9ca3af;
+      font-size: 0.85rem;
+      color: var(--text-muted);
       text-align: center;
-      padding: 0.5rem 0.25rem;
-      line-height: 1.5;
+      padding: 2rem 0.5rem;
+      line-height: 1.6;
     }
-
-    .new-conversation { margin-top: 0; padding: 0.95rem 1rem; }
 
     /* ── Profil utilisateur ── */
-    .user-profile {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      align-items: flex-end;
-    }
-
     .username-btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      background: none;
-      border: none;
-      padding: 0.2rem 0.4rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: #111827;
-      cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease;
-    }
-
-    .username-btn:hover { background: #fff3ef; color: #dc2c24; }
-
-    .edit-icon { opacity: 0.5; flex-shrink: 0; }
-    .username-btn:hover .edit-icon { opacity: 1; }
-
-    .logout-button {
-      border: none;
-      border-radius: 999px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0.4rem 0.8rem;
+      gap: 0.45rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+      border-radius: var(--r-pill);
       font-size: 0.85rem;
-      background: #f3f4f6;
-      color: #6b7280;
-      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      max-width: 150px;
+      transition: border-color var(--ease), background var(--ease);
     }
 
-    .logout-button:hover { opacity: 0.8; }
+    .username-btn:hover { border-color: var(--orange); background: #fff; }
+
+    .user-avatar {
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--gradient-warm);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .username-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .edit-icon { opacity: 0.45; flex-shrink: 0; }
+    .username-btn:hover .edit-icon { opacity: 1; color: var(--red); }
+
+    /* ── Pied ── */
+    .sidebar-footer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      border-top: 1px solid var(--border);
+      padding-top: 0.9rem;
+    }
+
   `],
 })
 export class SidebarComponent implements OnInit {
@@ -345,6 +428,10 @@ export class SidebarComponent implements OnInit {
 
   conversations: Conversation[]    = [];
   apiConversations: ApiConversation[] = [];
+
+  get userInitial(): string {
+    return this.currentUser?.username?.charAt(0)?.toUpperCase() ?? '?';
+  }
 
   showRegisterModal    = false;
   showLoginModal       = false;

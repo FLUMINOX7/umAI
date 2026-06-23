@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectorRef, ChangeDetectionStrategy, NgZone } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectorRef, ChangeDetectionStrategy, NgZone, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
 import { HealthService } from '../../services/health.service';
 
@@ -9,67 +9,65 @@ import { HealthService } from '../../services/health.service';
   imports: [CommonModule, HttpClientModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="health-status">
-      <div class="health-status__title">API status</div>
-      <button
-        class="health-status__badge"
-        [class.online]="isOnline()"
-        [class.offline]="isOffline()"
-        [disabled]="isLoading()"
-        type="button"
-        (click)="refresh()"
-      >
-        {{ label }}
-      </button>
-    </section>
+    <button
+      class="health-status"
+      [class.online]="isOnline()"
+      [class.offline]="isOffline()"
+      [class.loading]="isLoading()"
+      [disabled]="isLoading()"
+      type="button"
+      title="Cliquer pour rafraîchir"
+      (click)="refresh()"
+    >
+      <span class="status-dot"></span>
+      <span class="status-label">{{ label }}</span>
+    </button>
   `,
   styles: [
     `
       .health-status {
-        display: grid;
-        gap: 0.5rem;
-        padding: 1rem;
-        border-radius: 1rem;
-        background: #f9f5f2;
-        border: 1px solid #f3e3da;
-      }
-
-      .health-status__title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        color: #374151;
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-      }
-
-      .health-status__badge {
         width: 100%;
         display: inline-flex;
-        justify-content: center;
         align-items: center;
-        border: none;
-        border-radius: 999px;
-        padding: 0.85rem 1rem;
-        font-weight: 700;
+        gap: 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: var(--r-pill);
+        padding: 0.55rem 0.95rem;
+        font-size: 0.82rem;
+        font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.2s ease, color 0.2s ease;
-        background: #f3f4f6;
-        color: #111827;
+        background: var(--surface-2);
+        color: var(--text-soft);
+        transition: background var(--ease), color var(--ease);
       }
 
-      .health-status__badge.online {
-        background: #dcfce7;
-        color: #166534;
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: var(--text-muted);
       }
 
-      .health-status__badge.offline {
-        background: #fee2e2;
-        color: #991b1b;
+      .health-status.online  { color: var(--success-fg); }
+      .health-status.online  .status-dot {
+        background: var(--success-fg);
+        box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
       }
 
-      .health-status__badge:disabled {
-        cursor: default;
-        opacity: 0.8;
+      .health-status.offline { color: var(--danger-fg); }
+      .health-status.offline .status-dot {
+        background: var(--danger-fg);
+        box-shadow: 0 0 0 3px rgba(200, 30, 20, 0.15);
+      }
+
+      .health-status.loading .status-dot { animation: pulse 1s ease-in-out infinite; }
+
+      .health-status:disabled { cursor: default; }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; }
+        50%      { opacity: 1; }
       }
     `
   ]
@@ -81,11 +79,15 @@ export class HealthStatusComponent implements OnInit {
   constructor(
     private healthService: HealthService,
     private cd: ChangeDetectorRef,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    @Inject(PLATFORM_ID) private platformId: Object,
   ) {}
 
   ngOnInit(): void {
-    Promise.resolve().then(() => this.refresh());
+    // Pas d'appel HTTP pendant le rendu serveur (prerender) : navigateur uniquement.
+    if (isPlatformBrowser(this.platformId)) {
+      Promise.resolve().then(() => this.refresh());
+    }
   }
 
   isLoading(): boolean {

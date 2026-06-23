@@ -222,19 +222,19 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .field-input:focus {
-      border-color: #ff8a3d;
-      box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.12);
+      border-color: var(--orange);
+      box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.14);
       background: #fff;
     }
 
     .field-input.invalid {
-      border-color: #dc2c24;
-      box-shadow: 0 0 0 3px rgba(220, 44, 36, 0.10);
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(229, 57, 47, 0.10);
     }
 
     .field-error {
       font-size: 0.8rem;
-      color: #dc2c24;
+      color: var(--red);
     }
 
     /* ── Feedback ── */
@@ -283,15 +283,16 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #ff8a3d 0%, #dc2c24 100%);
+      background: var(--gradient-warm);
       color: #fff;
+      box-shadow: var(--shadow-glow);
     }
 
-    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:hover { transform: translateY(-1px); }
 
     .btn-danger {
-      background: #fff1f0;
-      color: #dc2c24;
+      background: var(--danger-bg);
+      color: var(--red);
       border: 1.5px solid #fca5a5;
     }
 

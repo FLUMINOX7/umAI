@@ -17,22 +17,26 @@ import { Message } from '../../interfaces/chat.interface';
       (mouseenter)="hovered = true"
       (mouseleave)="hovered = false"
     >
-      <div class="bubble" [class.ai]="message.role === 'ai'" [class.user]="message.role === 'user'">
-        <ng-container *ngIf="!editing">
-          <div class="md-content" [innerHTML]="parsed"></div>
-        </ng-container>
-        <ng-container *ngIf="editing">
-          <textarea
-            class="edit-area"
-            [(ngModel)]="editText"
-            rows="3"
-            autofocus
-          ></textarea>
-          <div class="edit-actions">
-            <button class="btn-confirm" (click)="confirmEdit()">Enregistrer</button>
-            <button class="btn-cancel"  (click)="cancelEdit()">Annuler</button>
-          </div>
-        </ng-container>
+      <div class="row">
+        <div *ngIf="message.role === 'ai'" class="avatar" aria-hidden="true">✦</div>
+
+        <div class="bubble" [class.ai]="message.role === 'ai'" [class.user]="message.role === 'user'">
+          <ng-container *ngIf="!editing">
+            <div class="md-content" [innerHTML]="parsed"></div>
+          </ng-container>
+          <ng-container *ngIf="editing">
+            <textarea
+              class="edit-area"
+              [(ngModel)]="editText"
+              rows="3"
+              autofocus
+            ></textarea>
+            <div class="edit-actions">
+              <button class="btn-confirm" (click)="confirmEdit()">Enregistrer</button>
+              <button class="btn-cancel"  (click)="cancelEdit()">Annuler</button>
+            </div>
+          </ng-container>
+        </div>
       </div>
 
       <div *ngIf="message.role === 'user' && hovered && !editing" class="action-btns">
@@ -47,6 +51,8 @@ import { Message } from '../../interfaces/chat.interface';
       flex-direction: column;
       align-items: flex-end;
       gap: 0.3rem;
+      max-width: 80%;
+      animation: pop-in 0.25s ease;
     }
 
     .bubble-wrapper.ai {
@@ -57,25 +63,51 @@ import { Message } from '../../interfaces/chat.interface';
       align-items: flex-end;
     }
 
+    .row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--gradient-warm);
+      color: #fff;
+      font-size: 0.95rem;
+      box-shadow: var(--shadow-sm);
+      margin-top: 2px;
+    }
+
     .bubble {
-      max-width: 75%;
-      padding: 1rem 1.1rem;
-      border-radius: 1.5rem;
-      line-height: 1.5;
+      padding: 0.9rem 1.15rem;
+      border-radius: var(--r-lg);
+      line-height: 1.55;
       word-break: break-word;
+      font-size: 0.96rem;
     }
 
     .bubble.ai {
-      background: #fff0e6;
-      color: #111827;
-      border: 1px solid #ffe0c7;
-      border-top-left-radius: 0.5rem;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-top-left-radius: var(--r-sm);
     }
 
     .bubble.user {
-      background: #dc2c24;
+      background: var(--gradient-warm);
       color: #fff;
-      border-top-right-radius: 0.5rem;
+      border-top-right-radius: var(--r-sm);
+      box-shadow: var(--shadow-sm);
+    }
+
+    @keyframes pop-in {
+      from { opacity: 0; transform: translateY(6px) scale(0.99); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     .md-content :first-child { margin-top: 0; }
@@ -145,7 +177,7 @@ import { Message } from '../../interfaces/chat.interface';
 
     .btn-confirm {
       background: #fff;
-      color: #dc2c24;
+      color: var(--red);
     }
 
     .btn-cancel {
@@ -174,17 +206,17 @@ import { Message } from '../../interfaces/chat.interface';
     }
 
     .action-btn:hover {
-      background: #f3f4f6;
+      background: var(--surface-2);
     }
 
     .delete-btn {
-      color: #dc2c24;
+      color: var(--red);
       font-size: 0.9rem;
       font-weight: 700;
     }
 
     .delete-btn:hover {
-      background: #fee2e2;
+      background: var(--danger-bg);
     }
   `]
 })

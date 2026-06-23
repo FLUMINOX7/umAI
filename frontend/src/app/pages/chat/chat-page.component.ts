@@ -41,8 +41,10 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
 
         <app-message-list
           [messages]="messages()"
+          [loading]="sending()"
           (messageEdited)="onMessageEdited($event)"
           (messageDeleted)="onMessageDeleted($event)"
+          (suggestionPicked)="sendMessage($event)"
         ></app-message-list>
 
         <app-composer
@@ -55,16 +57,14 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
   styles: [`
     :host {
       display: block;
-      min-height: 100dvh;
-      font-family: Inter, system-ui, sans-serif;
-      background: #f7f7f7;
-      color: #111;
+      height: 100dvh;
+      color: var(--text);
     }
 
     .app-shell {
       display: grid;
       grid-template-columns: 320px minmax(0, 1fr);
-      min-height: 100dvh;
+      height: 100dvh;
       gap: 1rem;
       padding: 1rem;
       box-sizing: border-box;
@@ -73,21 +73,31 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
     .chat-panel {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
-      background: #ffffff;
-      border-radius: 1.5rem;
-      border: 1px solid #ece9e6;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.05);
-      padding: 1.5rem;
+      min-height: 0;
+      background: var(--surface);
+      border-radius: var(--r-xl);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
     }
 
     @media (max-width: 1040px) {
-      .app-shell { grid-template-columns: 1fr; }
+      .app-shell {
+        display: flex;
+        flex-direction: column;
+      }
+      :host ::ng-deep app-sidebar {
+        flex: 0 0 auto;
+        max-height: 40vh;
+        display: block;
+        min-height: 0;
+      }
+      .chat-panel { flex: 1 1 auto; }
     }
 
     @media (max-width: 720px) {
-      .app-shell { padding: 0.75rem; }
-      .chat-panel { border-radius: 1.25rem; padding: 1rem; }
+      .app-shell { padding: 0.6rem; gap: 0.6rem; }
+      .chat-panel { border-radius: var(--r-lg); }
     }
   `],
 })

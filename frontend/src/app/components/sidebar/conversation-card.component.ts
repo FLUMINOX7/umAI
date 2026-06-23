@@ -85,37 +85,40 @@ import { ConversationRenameFormComponent } from './conversation-rename-form.comp
     .conversation-card {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.4rem;
       width: 100%;
-      padding: 0.5rem;
+      padding: 0.2rem 0.35rem 0.2rem 0;
       background: transparent;
-      border-radius: 0.9rem;
+      border-radius: var(--r-md);
       border: 1px solid transparent;
-      color: #111827;
+      color: var(--text);
       cursor: pointer;
-      transition: background 0.12s ease, transform 0.12s ease,
-                  box-shadow 0.12s ease, border-color 0.12s ease;
+      transition: background var(--ease), border-color var(--ease);
     }
 
     .conversation-card:hover:not(.renaming) {
-      background: rgba(255, 138, 61, 0.06);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+      background: var(--surface-2);
     }
 
     .conversation-card.active {
-      border-color: #ff8a3d;
-      background: linear-gradient(
-        135deg,
-        rgba(255, 138, 61, 0.06) 0%,
-        rgba(220, 44, 36, 0.03) 100%
-      );
+      border-color: rgba(255, 138, 61, 0.4);
+      background: var(--gradient-warm-soft);
+    }
+
+    .conversation-card.active::before {
+      content: '';
+      width: 3px;
+      align-self: stretch;
+      margin: 0.45rem 0;
+      border-radius: var(--r-pill);
+      background: var(--gradient-warm);
     }
 
     .conversation-card.renaming {
       cursor: default;
       background: #fff8f5;
       border-color: rgba(255, 138, 61, 0.3);
+      padding-left: 0.5rem;
     }
 
     /* ── Zone texte ── */
@@ -123,27 +126,28 @@ import { ConversationRenameFormComponent } from './conversation-rename-form.comp
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.25rem;
+      gap: 0.15rem;
       flex: 1 1 auto;
       min-width: 0;
-      padding: 0.75rem 0.9rem;
-      border-radius: 0.75rem;
+      padding: 0.55rem 0.4rem 0.55rem 0.75rem;
       text-align: left;
     }
 
     .conv-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #dc2c24;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       width: 100%;
     }
 
+    .conversation-card.active .conv-title { color: var(--red-dark); font-weight: 700; }
+
     .conv-preview {
-      font-size: 0.82rem;
-      color: #6b7280;
+      font-size: 0.76rem;
+      color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -154,7 +158,7 @@ import { ConversationRenameFormComponent } from './conversation-rename-form.comp
     .card-actions {
       display: flex;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.1rem;
       flex-shrink: 0;
       opacity: 0;
       transition: opacity 0.15s ease;
@@ -168,26 +172,26 @@ import { ConversationRenameFormComponent } from './conversation-rename-form.comp
     .icon-btn {
       border: none;
       background: transparent;
-      color: #9ca3af;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
+      color: var(--text-muted);
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 1rem;
-      transition: background 0.12s ease, color 0.12s ease;
+      font-size: 0.9rem;
+      transition: background var(--ease), color var(--ease);
     }
 
     .rename-btn:hover {
-      background: rgba(255, 138, 61, 0.1);
-      color: #ff8a3d;
+      background: rgba(255, 138, 61, 0.12);
+      color: var(--orange-deep);
     }
 
     .delete-btn:hover {
-      background: rgba(220, 44, 36, 0.08);
-      color: #dc2c24;
+      background: var(--danger-bg);
+      color: var(--red);
     }
   `],
 })

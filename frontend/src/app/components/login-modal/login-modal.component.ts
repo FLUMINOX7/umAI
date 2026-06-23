@@ -8,9 +8,11 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <div class="modal-backdrop">
+    <div class="modal-backdrop" (click)="onBackdrop($event)">
       <div class="modal">
-        <h3 class="modal-title">Connexion</h3>
+        <div class="modal-logo">✦</div>
+        <h3 class="modal-title">Bon retour&nbsp;!</h3>
+        <p class="modal-sub">Connectez-vous pour accéder à vos conversations.</p>
 
         <form [formGroup]="form" (ngSubmit)="submit()">
           <label class="field">
@@ -43,31 +45,81 @@ import { AuthService } from '../../services/auth.service';
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0,0,0,0.3);
+        background: rgba(31, 36, 48, 0.35);
+        backdrop-filter: blur(3px);
         z-index: 1000;
+        padding: 1rem;
+        animation: fade 0.2s ease;
       }
       .modal {
-        width: 360px;
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 1.25rem;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        width: 380px;
+        max-width: 100%;
+        background: var(--surface);
+        border-radius: var(--r-lg);
+        padding: 1.75rem;
+        box-shadow: var(--shadow-lg);
+        text-align: center;
+        animation: rise 0.25s cubic-bezier(0.4,0,0.2,1);
       }
-      .modal-title { margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #111827; }
-      .field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem; }
-      .field input { padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid #e6e6e6; }
-      .actions { display:flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem; }
-      .btn { border: none; padding: 0.6rem 0.9rem; border-radius: 999px; cursor: pointer; }
-      .btn.primary { background: linear-gradient(135deg,#ff8a3d 0%,#dc2c24 100%); color: white; font-weight:700; }
-      .btn.cancel { background: transparent; color: #6b7280; }
-      /* visually indicate disabled state */
-      .btn:disabled,
-      .btn[disabled] {
-        opacity: 0.6;
-        cursor: not-allowed;
-        pointer-events: none;
+      .modal-logo {
+        width: 52px;
+        height: 52px;
+        margin: 0 auto 0.85rem;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        background: var(--gradient-warm);
+        color: #fff;
+        font-size: 1.4rem;
+        box-shadow: var(--shadow-glow);
       }
-      .error { margin-top:0.75rem; color:#b91c1c; font-size:0.9rem; }
+      .modal-title { margin: 0 0 0.3rem; font-size: 1.25rem; font-weight: 800; color: var(--text); }
+      .modal-sub { margin: 0 0 1.4rem; font-size: 0.88rem; color: var(--text-soft); }
+      form { text-align: left; }
+      .field { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.85rem; }
+      .field span { font-size: 0.82rem; font-weight: 600; color: var(--text-soft); }
+      .field input {
+        padding: 0.7rem 0.85rem;
+        border-radius: var(--r-sm);
+        border: 1.5px solid var(--border-strong);
+        background: var(--surface-2);
+        font: inherit;
+        color: var(--text);
+        outline: none;
+        transition: border-color var(--ease), box-shadow var(--ease), background var(--ease);
+      }
+      .field input:focus {
+        border-color: var(--orange);
+        background: var(--surface);
+        box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.14);
+      }
+      .actions { display:flex; gap: 0.6rem; margin-top: 1.25rem; }
+      .btn {
+        flex: 1;
+        border: none;
+        padding: 0.75rem 0.9rem;
+        border-radius: var(--r-pill);
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        transition: transform var(--ease), box-shadow var(--ease), background var(--ease);
+      }
+      .btn.primary { background: var(--gradient-warm); color: #fff; box-shadow: var(--shadow-glow); }
+      .btn.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+      .btn.cancel { background: var(--surface-2); color: var(--text-soft); border: 1px solid var(--border-strong); }
+      .btn.cancel:hover { background: var(--border); }
+      .btn:disabled, .btn[disabled] { opacity: 0.55; cursor: not-allowed; pointer-events: none; box-shadow: none; }
+      .error {
+        margin-top: 1rem;
+        padding: 0.6rem 0.85rem;
+        border-radius: var(--r-sm);
+        background: var(--danger-bg);
+        color: var(--danger-fg);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+      @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes rise { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
     `
   ]
 })
@@ -89,6 +141,12 @@ export class LoginModalComponent {
 
   close() {
     this.closeModal.emit();
+  }
+
+  onBackdrop(event: MouseEvent) {
+    if ((event.target as HTMLElement).classList.contains('modal-backdrop')) {
+      this.close();
+    }
   }
 
   submit() {
