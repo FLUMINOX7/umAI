@@ -42,7 +42,9 @@ import { Conversation } from '../../interfaces/chat.interface';
       <!-- ── En-tête ── -->
       <div class="sidebar-header">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true">✦</div>
+          <div class="brand-mark" aria-hidden="true">
+            <img src="logo.png" alt="" class="brand-logo" />
+          </div>
           <div>
             <div class="brand-name">umAI</div>
             <div class="brand-subtitle">Assistant IA</div>
@@ -207,16 +209,23 @@ import { Conversation } from '../../interfaces/chat.interface';
     }
 
     .brand-mark {
-      width: 40px;
-      height: 40px;
+      width: 44px;
+      height: 44px;
       flex-shrink: 0;
       display: grid;
       place-items: center;
       border-radius: 12px;
-      background: var(--gradient-warm);
-      color: #fff;
-      font-size: 1.15rem;
-      box-shadow: var(--shadow-glow);
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      padding: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-logo {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     .brand-name {
