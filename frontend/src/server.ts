@@ -5,12 +5,44 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
+import { request as backendRequest } from 'node:http';
 import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
 const app = express();
 const angularApp = new AngularNodeAppEngine();
+
+/**
+ * Proxy des appels `/api` vers le backend Flask.
+ *
+ * Reproduit en production le comportement de `proxy.conf.json` utilisé par
+ * `ng serve` en développement. La cible est configurable via la variable
+ * d'environnement `BACKEND_URL` (par défaut, le backend local).
+ */
+const backendUrl = process.env['BACKEND_URL'] ?? 'http://localhost:5000';
+
+app.use('/api', (req, res) => {
+  const target = new URL(req.originalUrl, backendUrl);
+  const proxied = backendRequest(
+    target,
+    {
+      method: req.method,
+      headers: { ...req.headers, host: target.host },
+    },
+    (backendRes) => {
+      res.writeHead(backendRes.statusCode ?? 502, backendRes.headers);
+      backendRes.pipe(res);
+    },
+  );
+  proxied.on('error', () => {
+    if (!res.headersSent) {
+      res.writeHead(502, { 'content-type': 'application/json' });
+    }
+    res.end('{"error":"backend unavailable"}');
+  });
+  req.pipe(proxied);
+});
 
 /**
  * Example Express Rest API endpoints can be defined here.

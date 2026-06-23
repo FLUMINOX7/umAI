@@ -81,6 +81,69 @@ Après un build, le serveur SSR peut être lancé avec :
 npm run serve:ssr:umAI
 ```
 
+Le serveur Express ([`src/server.ts`](src/server.ts)) écoute sur le port défini par
+la variable `PORT` (défaut `4000`) et **proxifie les appels `/api`** vers le
+backend. La cible est configurable via la variable d'environnement `BACKEND_URL`
+(défaut `http://localhost:5000`). C'est l'équivalent en production du
+[`proxy.conf.json`](proxy.conf.json) utilisé en développement par `ng serve`.
+
+## Lancer Avec Docker
+
+Le frontend est conteneurisé via `frontend/Dockerfile` (build multi-stage :
+compilation Angular, puis serveur SSR Node). Le bundle serveur étant autonome,
+l'image finale ne contient que le résultat du build (`dist/umAI`), sans
+`node_modules`.
+
+### Option A — Stack complète (recommandé)
+
+Un `docker-compose.yml` à la **racine du projet** orchestre toute la stack
+(PostgreSQL + backend Flask + frontend). C'est la façon la plus simple de tout
+lancer d'un coup.
+
+Prérequis : un fichier `backend/.env` (voir `../backend/.env.example`).
+
+Depuis la racine du projet (`umAI/`) :
+
+```bash
+docker compose up --build
+```
+
+- Frontend (SSR) : http://localhost:4000
+- Backend / Swagger : http://localhost:5000/apidocs
+
+Le frontend proxifie automatiquement `/api` vers le backend (via `BACKEND_URL`
+configuré dans le compose) ; aucune configuration CORS n'est nécessaire.
+
+Pour arrêter :
+
+```bash
+docker compose down      # conserve les données
+docker compose down -v   # supprime aussi les volumes (base, index RAG)
+```
+
+### Option B — Conteneur frontend seul
+
+Si le backend tourne déjà ailleurs, construis et lance uniquement le frontend :
+
+```bash
+docker build -t umai-frontend .
+
+docker run -p 4000:4000 \
+  -e BACKEND_URL=http://host.docker.internal:5000 \
+  --add-host=host.docker.internal:host-gateway \
+  umai-frontend
+```
+
+- `BACKEND_URL` : URL du backend joignable depuis le conteneur (ici un backend
+  qui tourne sur la machine hôte).
+- L'application est servie sur http://localhost:4000.
+
+### Notes
+
+- Le build s'effectue dans l'image (`npm ci` + `npm run build`) : les `node_modules`
+  et le `dist/` locaux sont ignorés via `.dockerignore`.
+- Le conteneur expose un `HEALTHCHECK` ; `docker ps` affiche `healthy` une fois prêt.
+
 ## Structure du projet
 
 ```
