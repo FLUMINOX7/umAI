@@ -7,3 +7,4 @@ Structure du projet à la racine :
 - docs/
 
 Documentation de prise en main du backend : [backend/README.md](backend/README.md)
+Documentation de prise en main du frontend : [frontend/README.md](frontend/README.md)
