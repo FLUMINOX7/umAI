@@ -145,6 +145,9 @@ def session_chat(session_id):
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 
+    if not reply_text or not str(reply_text).strip():
+        return jsonify({"error": "the model returned an empty response"}), 502
+
     assistant_msg = MessageService.create_message(
         session_id,
         user_id=None,
