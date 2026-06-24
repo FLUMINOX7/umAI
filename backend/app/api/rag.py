@@ -1,8 +1,13 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from werkzeug.utils import secure_filename
 
 from rag.service import RagService, RagServiceError
 
+from app.services.transcription_service import TranscriptionService
+
+import os
+import json
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -84,3 +89,64 @@ def rag_query():
             "sources": result.sources,
         }
     )
+
+@rag_bp.post("/query/voice")
+@jwt_required()
+def rag_query_voice():
+    _ = get_jwt_identity()
+    
+    if "audio" not in request.files:
+        return jsonify({"error": "audio file is required"}), 400
+        
+    audio_file = request.files["audio"]
+    filename = secure_filename(audio_file.filename or "")
+    if not filename:
+        return jsonify({"error": "audio file name cannot be empty"}), 400
+
+    temp_dir = os.path.join(os.getcwd(), "temp_audio")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, filename)
+    audio_file.save(temp_path)
+
+    try:
+        transcriber = TranscriptionService()
+        question_text = transcriber.transcribe(temp_path)
+
+        if not question_text:
+            return jsonify({"error": "failed to transcribe audio"}), 400
+
+        conversation_history = None
+        raw_history = request.form.get("conversation_history")
+        if raw_history:
+            try:
+                parsed = json.loads(raw_history)
+                if isinstance(parsed, list):
+                    conversation_history = parsed
+            except (ValueError, TypeError):
+                conversation_history = None
+
+        top_k = request.form.get("top_k", type=int)
+        model = request.form.get("model")
+
+        service = RagService()
+        result = service.ask(
+            question=question_text,
+            conversation_history=conversation_history,
+            top_k=top_k if isinstance(top_k, int) else None,
+            model=model if isinstance(model, str) else None,
+        )
+
+        return jsonify({
+            "transcription": question_text,
+            "answer": result.answer,
+            "context": result.context,
+            "sources": result.sources
+        }), 200
+
+    except RagServiceError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
