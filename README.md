@@ -62,6 +62,28 @@ docker compose down      # conserve les données
 docker compose down -v   # supprime aussi les volumes (base, index RAG)
 ```
 
+## Ingestion RAG (indispensable pour le mode 📄 PDF)
+
+Le mode RAG s'appuie sur un **index FAISS** construit à partir des PDFs de
+[backend/cuisine_pdf/](backend/cuisine_pdf/). Cet index **n'existe pas au premier
+démarrage** : tant qu'il n'est pas construit, toute question en mode RAG échoue
+avec « FAISS index not found. Run ingestion first. »
+
+Lance l'ingestion **une seule fois**, la stack démarrée :
+
+```bash
+docker compose exec backend python -c "from rag.service import RagService; print(RagService().ingest())"
+```
+
+- Au premier lancement, le modèle d'embeddings (~90 Mo) est téléchargé, puis les
+  PDFs sont découpés et indexés : compte quelques minutes.
+- L'index est persisté dans le volume `umai_instance` ; il survit à
+  `docker compose down`/`up`. Seul `docker compose down -v` l'efface — il faut
+  alors relancer l'ingestion.
+- À relancer après avoir ajouté ou modifié des PDFs dans `backend/cuisine_pdf/`.
+
+> Les modes 🌐 **Web** et **LLM seul** ne nécessitent pas cette étape.
+
 ## Comprendre le `docker-compose.yml`
 
 Le fichier [docker-compose.yml](docker-compose.yml) à la racine définit trois
