@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.llm_service import generate_chat_response, LLMServiceError
@@ -108,15 +108,25 @@ def session_chat(session_id):
 
     try:
         if retrieval_mode == "rag":
-            from rag.service import RagService
+            from rag.service import RagService, RagServiceError
+            from rag.vector_store import RagVectorStoreError
 
             rag_service = RagService()
-            rag_result = rag_service.ask(
-                question=content,
-                conversation_history=prompt_history,
-                top_k=payload.get("top_k") if isinstance(payload.get("top_k"), int) else None,
-                model=model,
-            )
+            try:
+                rag_result = rag_service.ask(
+                    question=content,
+                    conversation_history=prompt_history,
+                    top_k=payload.get("top_k") if isinstance(payload.get("top_k"), int) else None,
+                    model=model,
+                )
+            except (RagServiceError, RagVectorStoreError) as exc:
+                # Index FAISS absent / corpus non ingéré : ce n'est pas une erreur
+                # serveur, on guide l'utilisateur vers l'ingestion.
+                current_app.logger.warning("RAG not ready on chat: %s", exc)
+                return jsonify({
+                    "error": str(exc),
+                    "hint": "Lance d'abord l'ingestion RAG (POST /api/rag/ingest).",
+                }), 409
             reply_text = rag_result.answer
             assistant_metadata = {"rag": True, "context": rag_result.context, "sources": rag_result.sources}
         elif retrieval_mode == "web":
@@ -139,11 +149,18 @@ def session_chat(session_id):
             reply_text = generate_chat_response(messages, model=model)
             assistant_metadata = None
     except LLMServiceError as exc:
+        current_app.logger.warning("LLM error on chat (mode=%s): %s", retrieval_mode, exc)
         return jsonify({"error": str(exc)}), 502
     except WebSearchServiceError as exc:
+        current_app.logger.warning("web search error on chat: %s", exc)
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:
+        current_app.logger.exception("unexpected error on chat (mode=%s)", retrieval_mode)
         return jsonify({"error": str(exc)}), 500
+
+    if not reply_text or not str(reply_text).strip():
+        current_app.logger.warning("empty model response on chat (mode=%s)", retrieval_mode)
+        return jsonify({"error": "the model returned an empty response"}), 502
 
     assistant_msg = MessageService.create_message(
         session_id,

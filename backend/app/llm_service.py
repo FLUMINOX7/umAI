@@ -59,11 +59,14 @@ def _post_json(url: str, payload: Dict[str, object], headers: Optional[Dict[str,
             raise LLMServiceError(f"invalid JSON response from {url}: {body}") from exc
 
 
-def _extract_openrouter_text(data: Dict[str, object]) -> str:
+def _extract_openrouter_text(data: Dict[str, object]) -> Optional[str]:
     try:
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
     except Exception:
-        return str(data.get("text") or data)
+        content = data.get("text")
+    if isinstance(content, str) and content.strip():
+        return content
+    return None
 
 
 def _call_openrouter(messages: List[Dict[str, str]], model: str, stream: bool = False) -> str:
@@ -75,7 +78,12 @@ def _call_openrouter(messages: List[Dict[str, str]], model: str, stream: bool = 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {"model": model, "messages": messages, "stream": stream}
     data = _post_json(_get_openrouter_url(), payload, headers=headers)
-    return _extract_openrouter_text(data)
+    text = _extract_openrouter_text(data)
+    if text is None:
+        # Réponse 200 mais sans contenu exploitable : on évite d'enregistrer un
+        # message vide et on remonte la réponse brute pour diagnostiquer.
+        raise LLMServiceError(f"model {model} returned no text content: {data}")
+    return text
 
 
 def generate_chat_response(
