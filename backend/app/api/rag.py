@@ -7,6 +7,7 @@ from rag.service import RagService, RagServiceError
 from app.services.transcription_service import TranscriptionService
 
 import os
+import json
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -114,10 +115,18 @@ def rag_query_voice():
         if not question_text:
             return jsonify({"error": "failed to transcribe audio"}), 400
 
-        payload = _extract_payload()
-        conversation_history = payload.get("conversation_history")
-        top_k = payload.get("top_k")
-        model = payload.get("model")
+        conversation_history = None
+        raw_history = request.form.get("conversation_history")
+        if raw_history:
+            try:
+                parsed = json.loads(raw_history)
+                if isinstance(parsed, list):
+                    conversation_history = parsed
+            except (ValueError, TypeError):
+                conversation_history = None
+
+        top_k = request.form.get("top_k", type=int)
+        model = request.form.get("model")
 
         service = RagService()
         result = service.ask(
