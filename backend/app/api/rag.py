@@ -1,10 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from werkzeug.utils import secure_filename
 
 from rag.service import RagService, RagServiceError
 
 from app.services.transcription_service import TranscriptionService
 
+import os
 
 rag_bp = Blueprint("rag", __name__, url_prefix="/rag")
 
@@ -96,12 +98,13 @@ def rag_query_voice():
         return jsonify({"error": "audio file is required"}), 400
         
     audio_file = request.files["audio"]
-    if audio_file.filename == "":
+    filename = secure_filename(audio_file.filename or "")
+    if not filename:
         return jsonify({"error": "audio file name cannot be empty"}), 400
 
     temp_dir = os.path.join(os.getcwd(), "temp_audio")
     os.makedirs(temp_dir, exist_ok=True)
-    temp_path = os.path.join(temp_dir, audio_file.filename)
+    temp_path = os.path.join(temp_dir, filename)
     audio_file.save(temp_path)
 
     try:
