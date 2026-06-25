@@ -37,8 +37,9 @@ ENV PYTHONUNBUFFERED=1 \
     XDG_CACHE_HOME=/app/instance/cache
 
 # libpq pour psycopg + ffmpeg requis par Whisper pour décoder l'audio
+# gosu : permet à l'entrypoint (root) de lâcher les privilèges vers appuser
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libpq5 curl ffmpeg \
+    && apt-get install -y --no-install-recommends libpq5 curl ffmpeg gosu \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 appuser
 
@@ -52,14 +53,21 @@ COPY . .
 
 # Dossiers générés à l'exécution (RAG / instance) inscriptibles par appuser
 RUN mkdir -p instance/rag/faiss_index cuisine_pdf \
+    && chmod +x /app/entrypoint.sh \
     && chown -R appuser:appuser /app
 
-USER appuser
+# Pas de `USER appuser` ici : l'entrypoint démarre en root pour pouvoir corriger
+# les droits du volume Railway monté sur /app/instance, puis bascule vers appuser
+# via gosu.
 
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD curl -fsS http://localhost:5000/openapi.json || exit 1
+
+# L'entrypoint (root) corrige les droits du volume, lance l'ingestion RAG au
+# premier démarrage, puis exécute le CMD en tant qu'appuser via gosu.
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # wsgi.py expose `app = create_app()`
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "120", "wsgi:app"]
