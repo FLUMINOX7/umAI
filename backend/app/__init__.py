@@ -3,6 +3,7 @@ import os
 from flask import Flask
 from flask import jsonify, send_file
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 from .api import api_bp
 from .config import build_database_uri, build_documents_database_uri, get_config
@@ -15,6 +16,7 @@ load_dotenv(_dotenv_path)
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
     app.config.from_object(get_config())
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", app.config.get("SECRET_KEY", "change-me"))
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", app.config["SECRET_KEY"])
