@@ -2,6 +2,7 @@ import { Component, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatService } from '../../services/chat.service';
 import { ConversationService, ApiConversation, ApiMessage, ChatResponse } from '../../services/conversation.service';
+import { RagService } from '../../services/rag.service';
 import { RetrievalMode } from '../../components/chat-header/chat-header.component';
 import { SidebarComponent } from '../../components/sidebar/sidebar.component';
 import { ChatHeaderComponent } from '../../components/chat-header/chat-header.component';
@@ -50,6 +51,7 @@ import { Conversation, Message } from '../../interfaces/chat.interface';
         <app-composer
           [sending]="sending()"
           (messageSent)="sendMessage($event)"
+          (voiceRecorded)="sendVoice($event)"
         ></app-composer>
       </main>
     </div>
@@ -140,6 +142,7 @@ export class ChatPageComponent {
   constructor(
     private chatService: ChatService,
     private conversationService: ConversationService,
+    private ragService: RagService,
   ) {
     effect(() => {
       const id = this.currentConversation().id;
@@ -268,6 +271,62 @@ export class ChatPageComponent {
         console.error('Erreur envoi message', err);
         this.messages.update((msgs) => msgs.slice(0, -1));
         this.sending.set(false);
+      },
+    });
+  }
+
+  /**
+   * Message vocal : on envoie l'audio à /api/rag/query/voice pour récupérer la
+   * TRANSCRIPTION (Whisper), puis on la fait passer par le pipeline texte normal
+   * (sendMessage → sendChat). Ainsi le message et la réponse sont persistés dans
+   * la session et le mode de recherche sélectionné (none/rag/web) est respecté.
+   */
+  sendVoice(audio: Blob): void {
+    if (this.sending()) return;
+
+    this.sending.set(true);
+
+    const ext = (audio.type.split('/')[1]?.split(';')[0]) || 'webm';
+    const filename = `voice-${Date.now()}.${ext}`;
+
+    this.ragService.queryVoice(audio, filename).subscribe({
+      next: (res) => {
+        // Libère le verrou avant de réutiliser le pipeline texte (qui le reprend).
+        this.sending.set(false);
+
+        const text = res.transcription?.trim();
+        if (!text) {
+          this.messages.update((msgs) => [
+            ...msgs,
+            { role: 'ai', text: "Je n'ai rien compris dans l'audio. Réessayez.", timestamp: new Date() },
+          ]);
+          return;
+        }
+
+        if (!this.currentConversation().id) {
+          this.messages.update((msgs) => [
+            ...msgs,
+            { role: 'ai', text: 'Sélectionnez ou créez une conversation avant de dicter.', timestamp: new Date() },
+          ]);
+          return;
+        }
+
+        // Persiste via sendChat (affichage optimiste + réponse enregistrée).
+        this.sendMessage(text);
+      },
+      error: (err) => {
+        console.error('Erreur message vocal', err);
+        this.sending.set(false);
+        let text = "Désolé, je n'ai pas pu traiter le message vocal.";
+        if (err?.status === 401) {
+          text = 'Connectez-vous pour utiliser la recherche vocale.';
+        } else if (err?.error?.error) {
+          text = err.error.error;
+        }
+        this.messages.update((msgs) => [
+          ...msgs,
+          { role: 'ai', text, timestamp: new Date() },
+        ]);
       },
     });
   }
