@@ -1,0 +1,111 @@
+/* ============================================================================
+   umAI — Design system global
+   Palette : blanc dominant + touches chaudes (jaune → orange → rouge)
+   ========================================================================== */
+
+/* Police Inter auto-hébergée (variable, latin + latin-ext) — build et runtime
+   100% hors-ligne, plus aucune dépendance à Google Fonts. Fichiers dans public/fonts/. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* ── Couleurs chaudes ───────────────────────────────────────────────── */
+  --red:          #e5392f;
+  --red-dark:     #c81e14;
+  --orange:       #ff8a3d;
+  --orange-deep:  #f97316;
+  --amber:        #f59e0b;
+  --yellow:       #fbbf24;
+
+  /* ── Dégradés signature ─────────────────────────────────────────────── */
+  --gradient-warm:      linear-gradient(135deg, #fbbf24 0%, #ff8a3d 48%, #e5392f 100%);
+  --gradient-warm-soft: linear-gradient(135deg, #fff7e6 0%, #fff1e8 50%, #ffeae6 100%);
+
+  /* ── Neutres ────────────────────────────────────────────────────────── */
+  --bg:           #fdf8f4;   /* fond chaud très clair */
+  --surface:      #ffffff;
+  --surface-2:    #fbf7f3;
+  --text:         #1f2430;
+  --text-soft:    #6b7280;
+  --text-muted:   #9ca3af;
+  --border:       #f0e9e2;
+  --border-strong:#e6ddd4;
+
+  /* ── États ──────────────────────────────────────────────────────────── */
+  --success-bg:   #ecfdf3;
+  --success-fg:   #15803d;
+  --danger-bg:    #fef2f2;
+  --danger-fg:    #c81e14;
+
+  /* ── Rayons ─────────────────────────────────────────────────────────── */
+  --r-sm: 0.6rem;
+  --r-md: 0.9rem;
+  --r-lg: 1.25rem;
+  --r-xl: 1.75rem;
+  --r-pill: 999px;
+
+  /* ── Ombres ─────────────────────────────────────────────────────────── */
+  --shadow-sm:  0 2px 8px rgba(229, 57, 47, 0.06);
+  --shadow-md:  0 10px 30px rgba(229, 57, 47, 0.08);
+  --shadow-lg:  0 24px 60px rgba(229, 57, 47, 0.10);
+  --shadow-glow:0 8px 24px rgba(255, 138, 61, 0.35);
+
+  /* ── Transitions ────────────────────────────────────────────────────── */
+  --ease: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(251, 191, 36, 0.10), transparent 42%),
+    radial-gradient(circle at 90% 8%, rgba(229, 57, 47, 0.08), transparent 38%),
+    radial-gradient(circle at 50% 100%, rgba(255, 138, 61, 0.06), transparent 50%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Scrollbar chaude et discrète ─────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--r-pill);
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--orange); background-clip: padding-box; }
+
+/* ── Focus accessible global ──────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}

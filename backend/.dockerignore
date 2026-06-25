@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Flask / environnement (les secrets passent par variables d'env du conteneur)
+instance/
+.env
+.env.*
+!.env.example
+
+# Bases locales générées
+*.sqlite3
+*.db
+
+# RAG / caches
+faiss_index/
+.cache/
+hf_cache/
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Git / IDE / OS
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

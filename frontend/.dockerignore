@@ -1,0 +1,20 @@
+# Dépendances et artefacts (réinstallés / reconstruits dans l'image)
+node_modules
+dist
+.angular
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Git / IDE / OS
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,58 @@
+# Stack complète umAI : PostgreSQL + backend Flask + frontend Angular (SSR).
+# Lancement depuis la racine du projet :  docker compose up --build
+#
+# Prérequis : un fichier backend/.env (voir backend/.env.example).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB sont lus depuis backend/.env
+    env_file:
+      - ./backend/.env
+    volumes:
+      - umai_pgdata:/var/lib/postgresql/data
+      # Schéma appliqué automatiquement au premier démarrage (volume vide)
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      # $$ => le shell du conteneur expanse la variable (fournie par env_file)
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Dans le réseau compose, la base est joignable via le service "db"
+      POSTGRES_HOST: db
+    ports:
+      # Exposé pour l'accès direct à l'API / Swagger (http://localhost:5000/apidocs)
+      - "5000:5000"
+    volumes:
+      - umai_instance:/app/instance
+      - ./backend/cuisine_pdf:/app/cuisine_pdf
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      # Le serveur SSR proxifie /api vers le backend
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "4000:4000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  umai_pgdata:
+  umai_instance:

@@ -1,0 +1,365 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "umAI API",
+    "version": "1.0.0",
+    "description": "API Flask pour l'authentification, les conversations, les messages et les sessions LLM. Les routes LLM s'appuient sur OpenRouter."
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "tags": [
+    {"name": "Health"},
+    {"name": "Auth"},
+    {"name": "Conversations"},
+    {"name": "Messages"},
+    {"name": "LLM"},
+    {"name": "RAG"}
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"}
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "username": {"type": "string"},
+          "email": {"type": ["string", "null"]},
+          "created_at": {"type": "string"},
+          "last_login": {"type": ["string", "null"]},
+          "is_active": {"type": "boolean"}
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {"type": "string"},
+          "user": {"$ref": "#/components/schemas/User"}
+        }
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "user_id": {"type": "string"},
+          "title": {"type": ["string", "null"]},
+          "metadata": {"type": ["object", "null"]},
+          "created_at": {"type": "string"},
+          "updated_at": {"type": "string"}
+        }
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "conversation_id": {"type": "string"},
+          "user_id": {"type": ["string", "null"]},
+          "role": {"type": "string", "enum": ["user", "assistant", "system"]},
+          "content": {"type": "string"},
+          "metadata": {"type": ["object", "null"]},
+          "created_at": {"type": "string"}
+        }
+      },
+      "SessionChatResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {"$ref": "#/components/schemas/Message"},
+          "user_message": {"$ref": "#/components/schemas/Message"}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is running"
+          }
+        }
+      }
+    },
+    "/rag/status": {
+      "get": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Get RAG status",
+        "responses": {
+          "200": {
+            "description": "RAG status"
+          }
+        }
+      }
+    },
+    "/rag/ingest": {
+      "post": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Rebuild the RAG index from PDFs",
+        "responses": {
+          "201": {
+            "description": "RAG index rebuilt"
+          }
+        }
+      }
+    },
+    "/rag/query": {
+      "post": {
+        "tags": ["RAG"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Query the RAG pipeline directly",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["question"],
+                "properties": {
+                  "question": {"type": "string", "description": "Question utilisateur."},
+                  "top_k": {"type": "integer", "description": "Nombre de chunks à récupérer."},
+                  "model": {"type": "string", "description": "Slug OpenRouter optionnel."},
+                  "conversation_history": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {"type": "string"},
+                        "content": {"type": "string"}
+                      }
+                    },
+                    "description": "Historique de conversation optionnel à injecter dans le prompt RAG."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RAG answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {"type": "string"},
+                    "context": {"type": "string"},
+                    "sources": {"type": "array"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {"type": "string"},
+                  "email": {"type": "string"},
+                  "password": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/AuthResponse"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Log in with username or email",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["identifier", "password"],
+                "properties": {
+                  "identifier": {"type": "string"},
+                  "password": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token returned",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AuthResponse"}}}
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Get current user",
+        "responses": {"200": {"description": "Current user"}}
+      },
+      "patch": {
+        "tags": ["Auth"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Update current user",
+        "responses": {"200": {"description": "Current user updated"}}
+      },
+      "delete": {
+        "tags": ["Auth"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Delete current user",
+        "responses": {"200": {"description": "Account deleted"}}
+      }
+    },
+    "/conversations": {
+      "get": {
+        "tags": ["Conversations"],
+        "security": [{"bearerAuth": []}],
+        "summary": "List conversations",
+        "responses": {"200": {"description": "Conversation list"}}
+      },
+      "post": {
+        "tags": ["Conversations"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Create a conversation",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {"type": "string"},
+                  "metadata": {"type": "object"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"201": {"description": "Conversation created"}}
+      }
+    },
+    "/conversations/{conversation_id}": {
+      "parameters": [
+        {
+          "name": "conversation_id",
+          "in": "path",
+          "required": true,
+          "schema": {"type": "string"}
+        }
+      ],
+      "get": {"tags": ["Conversations"], "security": [{"bearerAuth": []}], "summary": "Get one conversation", "responses": {"200": {"description": "Conversation"}}},
+      "patch": {"tags": ["Conversations"], "security": [{"bearerAuth": []}], "summary": "Update a conversation", "responses": {"200": {"description": "Conversation updated"}}},
+      "delete": {"tags": ["Conversations"], "security": [{"bearerAuth": []}], "summary": "Delete a conversation", "responses": {"200": {"description": "Conversation deleted"}}}
+    },
+    "/conversations/{conversation_id}/messages": {
+      "parameters": [
+        {
+          "name": "conversation_id",
+          "in": "path",
+          "required": true,
+          "schema": {"type": "string"}
+        }
+      ],
+      "get": {"tags": ["Messages"], "security": [{"bearerAuth": []}], "summary": "List messages", "responses": {"200": {"description": "Message list"}}},
+      "post": {"tags": ["Messages"], "security": [{"bearerAuth": []}], "summary": "Create a message", "responses": {"201": {"description": "Message created"}}}
+    },
+    "/conversations/{conversation_id}/messages/{message_id}": {
+      "parameters": [
+        {"name": "conversation_id", "in": "path", "required": true, "schema": {"type": "string"}},
+        {"name": "message_id", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "get": {"tags": ["Messages"], "security": [{"bearerAuth": []}], "summary": "Get a message", "responses": {"200": {"description": "Message"}}},
+      "patch": {"tags": ["Messages"], "security": [{"bearerAuth": []}], "summary": "Update a message", "responses": {"200": {"description": "Message updated"}}},
+      "delete": {"tags": ["Messages"], "security": [{"bearerAuth": []}], "summary": "Delete a message", "responses": {"200": {"description": "Message deleted"}}}
+    },
+    "/llm/sessions": {
+      "get": {"tags": ["LLM"], "security": [{"bearerAuth": []}], "summary": "List sessions", "responses": {"200": {"description": "Session list"}}},
+      "post": {"tags": ["LLM"], "security": [{"bearerAuth": []}], "summary": "Create a session", "responses": {"201": {"description": "Session created"}}}
+    },
+    "/llm/sessions/{session_id}": {
+      "parameters": [
+        {"name": "session_id", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "get": {"tags": ["LLM"], "security": [{"bearerAuth": []}], "summary": "Get a session and history", "responses": {"200": {"description": "Session + messages"}}},
+      "delete": {"tags": ["LLM"], "security": [{"bearerAuth": []}], "summary": "Delete a session", "responses": {"200": {"description": "Session deleted"}}}
+    },
+    "/llm/sessions/{session_id}/chat": {
+      "parameters": [
+        {"name": "session_id", "in": "path", "required": true, "schema": {"type": "string"}}
+      ],
+      "post": {
+        "tags": ["LLM"],
+        "security": [{"bearerAuth": []}],
+        "summary": "Send a message to the LLM",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["content"],
+                "properties": {
+                  "content": {"type": "string", "description": "Message utilisateur envoyé à la session LLM."},
+                  "retrieval_mode": {"type": "string", "enum": ["none", "rag", "web"], "description": "Mode de récupération de contexte. none = LLM seul, rag = PDF cuisine, web = recherche DuckDuckGo."},
+                  "use_rag": {"type": "boolean", "description": "Compatibilité ascendante. Si true, équivaut à retrieval_mode=rag."},
+                  "use_web_search": {"type": "boolean", "description": "Compatibilité ascendante. Si true, équivaut à retrieval_mode=web."},
+                  "top_k": {"type": "integer", "description": "Nombre de chunks ou de résultats à récupérer selon le mode sélectionné."},
+                  "model": {"type": "string", "description": "Slug OpenRouter du modèle à utiliser pour cette requête. Si absent, le backend essaie les modèles configurés dans l'ordre puis openrouter/free."}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assistant reply",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/SessionChatResponse"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

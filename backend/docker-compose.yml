@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    # POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB sont lus depuis .env
+    env_file:
+      - .env
+    volumes:
+      - umai_pgdata:/var/lib/postgresql/data
+      # Le schéma est appliqué automatiquement au tout premier démarrage
+      # (uniquement quand le volume de données est vide).
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Surcharge l'hôte : dans le réseau compose, la base est le service "db"
+      POSTGRES_HOST: db
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persiste l'index FAISS et le cache des modèles d'embeddings
+      - umai_instance:/app/instance
+      # Corpus PDF cuisine (monte un dossier local pour fournir les PDFs)
+      - ./cuisine_pdf:/app/cuisine_pdf
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  umai_pgdata:
+  umai_instance:
