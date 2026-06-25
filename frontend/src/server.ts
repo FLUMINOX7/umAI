@@ -5,7 +5,8 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
-import { request as backendRequest } from 'node:http';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
@@ -24,6 +25,11 @@ const backendUrl = process.env['BACKEND_URL'] ?? 'http://localhost:5000';
 
 app.use('/api', (req, res) => {
   const target = new URL(req.originalUrl, backendUrl);
+  // node:http ne sait pas parler TLS : on choisit le module selon la cible.
+  // Indispensable quand BACKEND_URL est en https (backend Railway public).
+  // Sinon la connexion en clair vers le port 443 échoue, ou la redirection
+  // 301 http->https de Railway transforme le POST du navigateur en GET (405).
+  const backendRequest = target.protocol === 'https:' ? httpsRequest : httpRequest;
   const proxied = backendRequest(
     target,
     {
