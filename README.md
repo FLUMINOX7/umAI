@@ -12,7 +12,7 @@ L'application gère également les comptes utilisateurs (authentification JWT),
 l'historique des conversations et l'édition des messages.
 
 ## Déploiement
-L'application set déployé et diponible sur https://umai-59f8.onrender.com/
+L'application est déployé et diponible sur https://umai-59f8.onrender.com/
 
 ## Architecture
 
