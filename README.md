@@ -11,6 +11,9 @@ combine un LLM avec deux modes d'enrichissement des réponses :
 L'application gère également les comptes utilisateurs (authentification JWT),
 l'historique des conversations et l'édition des messages.
 
+## Déploiement
+L'application set déployé et diponible sur https://umai-59f8.onrender.com/
+
 ## Architecture
 
 Le projet est organisé en trois services :
